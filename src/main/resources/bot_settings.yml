@@ -1,0 +1,11 @@
+common:
+  trailPercentage: 0.0
+  lossCutPercentage: 0.0
+exchange:
+  apiKey: ""
+  secret: ""
+logic:
+  spread: 0.0
+  notifyInterval: 60.0
+slack:
+  incomingWebhook: ""
