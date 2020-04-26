@@ -19,28 +19,28 @@ public class BotMain {
 	private static Map<String, Object> settings;
 
 	public static void main(String[] args) {
-		LOGGER.info("bot$B5/F0$7$^$9!D(B");
-		// $B%9%l%C%I$N%m%0=PNO@_Dj(B
+		LOGGER.info("bot起動します…");
+		// スレッドのログ出力設定
 		Thread.UncaughtExceptionHandler dueh = Thread.getDefaultUncaughtExceptionHandler();
 		if (dueh == null) {
 			Thread.setDefaultUncaughtExceptionHandler((Thread t, Throwable e) -> {
-				LOGGER.error("$BNc30H/@8!*(B", e);
+				LOGGER.error("例外発生！", e);
 			});
 		}
-		// $B@_DjCMFI$_9~$_(B
+		// 設定値読み込み
 		settings = loadSettings();
 		wrapper = BitFlyerAPIWrapper.getInstance(settings);
 		System.out.println(wrapper.getCollateral().getCollateral());
 		notifier = SlackNotifier.getInstance(settings);
 		@SuppressWarnings("unchecked")
 		Map<String, Double> paramMap = (Map<String, Double>) settings.get("common");
-		// $B%Q%i%a!<%?=PNO(B
+		// パラメータ出力
 		StringBuilder sb = new StringBuilder();
 		sb.append("CommonParams");
 		paramMap.forEach((k, v) -> sb.append(" " + k + ":" + v));
 		LOGGER.info(sb.toString());
 		ProfitTrailDealingLogic logic = new ProfitTrailDealingLogic(wrapper, notifier, paramMap, settings);
-		LOGGER.info("$B%m%8%C%/3+;O$7$^$9!D(B");
+		LOGGER.info("ロジック開始します…");
 		notifier.sendMessage("LOGIC START!");
 		logic.execute();
 	}

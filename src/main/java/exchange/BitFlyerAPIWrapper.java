@@ -75,7 +75,7 @@ public class BitFlyerAPIWrapper {
 		if (INSTANCE == null) {
 			@SuppressWarnings("unchecked")
 			Map<String, String> exchangeParam = (Map<String, String>) settings.get("exchange");
-			// $B%Q%i%a!<%?=PNO(B
+			// パラメータ出力
 			StringBuilder sb = new StringBuilder();
 			sb.append("ExchangeParams");
 			exchangeParam.forEach((k, v) -> sb.append(" " + k + ":" + v));
@@ -96,7 +96,7 @@ public class BitFlyerAPIWrapper {
 				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
 				int status = response.statusCode();
 				if (status >= 500) {
-					// 500$BHVBf$J$i%j%H%i%$(B
+					// 500番台ならリトライ
 					LOGGER.info("try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
@@ -131,7 +131,7 @@ public class BitFlyerAPIWrapper {
 				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
 				int status = response.statusCode();
 				if (status >= 500) {
-					// 500$BHVBf$J$i%j%H%i%$(B
+					// 500番台ならリトライ
 					LOGGER.info("try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
@@ -173,7 +173,7 @@ public class BitFlyerAPIWrapper {
 				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
 				int status = response.statusCode();
 				if (status >= 500) {
-					// 500$BHVBf$J$i%j%H%i%$(B
+					// 500番台ならリトライ
 					LOGGER.info("try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
@@ -207,7 +207,7 @@ public class BitFlyerAPIWrapper {
 				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
 				int status = response.statusCode();
 				if (status >= 500) {
-					// 500$BHVBf$J$i%j%H%i%$(B
+					// 500番台ならリトライ
 					LOGGER.info("try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
@@ -241,7 +241,7 @@ public class BitFlyerAPIWrapper {
 				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
 				int status = response.statusCode();
 				if (status >= 500) {
-					// 500$BHVBf$J$i%j%H%i%$(B
+					// 500番台ならリトライ
 					LOGGER.info("try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;

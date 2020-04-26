@@ -16,7 +16,7 @@ public class CollateralResponse {
 	private String keepRate;
 
 	/**
-	 * @return $BMB$1F~$l$?>Z5r6b$NI>2A3[(B($B1_(B)
+	 * @return 預け入れた証拠金の評価額(円)
 	 */
 	public int getCollateral() {
 		return collateral;
@@ -27,7 +27,7 @@ public class CollateralResponse {
 	}
 
 	/**
-	 * @return $B7z6L$NI>2AB;1W(B($B1_(B)
+	 * @return 建玉の評価損益(円)
 	 */
 	public String getOpenPositionPnl() {
 		return openPositionPnl;
@@ -38,7 +38,7 @@ public class CollateralResponse {
 	}
 
 	/**
-	 * @return $B8=:_$NI,MW>Z5r6b(B($B1_(B)
+	 * @return 現在の必要証拠金(円)
 	 */
 	public String getRequireCollateral() {
 		return requireCollateral;
@@ -49,7 +49,7 @@ public class CollateralResponse {
 	}
 
 	/**
-	 * @return $B8=:_$N>Z5r6b0];}N((B
+	 * @return 現在の証拠金維持率
 	 */
 	public String getKeepRate() {
 		return keepRate;

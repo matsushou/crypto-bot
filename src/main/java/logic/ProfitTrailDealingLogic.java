@@ -41,7 +41,7 @@ public class ProfitTrailDealingLogic {
 		this.LOSS_CUT_PERCENTAGE = paramMap.get("lossCutPercentage");
 		@SuppressWarnings("unchecked")
 		Map<String, Double> logicParam = (Map<String, Double>) settings.get("logic");
-		// $B%Q%i%a!<%?=PNO(B
+		// パラメータ出力
 		StringBuilder sb = new StringBuilder();
 		sb.append("LogicParams");
 		logicParam.forEach((k, v) -> sb.append(" " + k + ":" + v));
@@ -51,59 +51,59 @@ public class ProfitTrailDealingLogic {
 	}
 
 	public void execute() {
-		// $B=i4|2=(B
+		// 初期化
 		init();
-		// $BJ,B-:n@.%9%l%C%I$N3+;O(B(1$BJ,Kh$N=hM}$b<99TH=CG$b$3$NCf$G9T$&(B)
+		// 分足作成スレッドの開始(1分毎の処理も執行判断もこの中で行う)
 		startOhlcvThread();
-		// $BDj4|DLCN%9%l%C%I$N3+;O(B($BDj4|E*$K(BSlack$BDLCN(B)
+		// 定期通知スレッドの開始(定期的にSlack通知)
 		startPeriodicalNotifyThread(INTERVAL);
 	}
 
 	private void init() {
-		// $B%]%8%7%g%s%/%j%"(B
+		// ポジションクリア
 		positionClear();
-		// $B=hM}H?1G$^$G>/$7BT$D(B
+		// 処理反映まで少し待つ
 		try {
 			Thread.sleep(3000);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		// $B>Z5r6bI>2A3[<hF@(B
+		// 証拠金評価額取得
 		int collateral = getCollateral();
-		LOGGER.info("$B>Z5r6bI>2A3[(B:" + collateral);
-		// $B:G=i$O$H$j$"$($:Gc$&(B
+		LOGGER.info("証拠金評価額:" + collateral);
+		// 最初はとりあえず買う
 		buy();
 	}
 
 	private void startOhlcvThread() {
-		// $BKhIC(BMid$B$r<hF@$7!"J,B-$r:n@.$9$k%9%l%C%I(B
+		// 毎秒Midを取得し、分足を作成するスレッド
 		Thread t = new Thread(() -> {
 			int lastSecond = -1;
 			int count = 0;
 			int[] ohlcv = new int[4];
-			// $B%*!<%P!<%X%C%I8:$i$9$?$a!":G=i0l2s%j%/%(%9%H$7$F$*$/(B
+			// オーバーヘッド減らすため、最初一回リクエストしておく
 			getMidPrice();
 			while (true) {
 				LocalDateTime now = LocalDateTime.now();
 				int second = now.getSecond();
 				if (second != lastSecond) {
-					// $BIC$,JQ$o$C$?$i(BMid$B<hF@(B
+					// 秒が変わったらMid取得
 					int mid = getMidPrice();
-					LOGGER.debug("Mid$B<hF@7k2L!'(B" + mid + " $B;~9o(B:" + now);
+					LOGGER.debug("Mid取得結果：" + mid + " 時刻:" + now);
 					this.mid = mid;
-					// High,Low$B$N99?7%A%'%C%/(B
+					// High,Lowの更新チェック
 					ohlcv = OHLCVUtil.replaceHighAndLow(ohlcv, mid);
 					if (count % 60 == 0) {
-						// 1$BJ,Kh$N=hM}(B
+						// 1分毎の処理
 						if (count != 0) {
-							// $B=i2s$O=|$/(B
-							// $BA0$NJ,B-$K(Bclose$B$r@_Dj(B
+							// 初回は除く
+							// 前の分足にcloseを設定
 							ohlcv = OHLCVUtil.setClose(ohlcv, mid);
-							// $B<99TH=CG(B
+							// 執行判断
 							judge();
 							LOGGER.debug(OHLCVUtil.toString(ohlcv));
 						}
-						// OHLCV$B$N=i4|2=$H(Bopen,high,low$B$N@_Dj(B
+						// OHLCVの初期化とopen,high,lowの設定
 						ohlcv = new int[4];
 						ohlcv = OHLCVUtil.setOpen(ohlcv, mid);
 						ohlcv = OHLCVUtil.setHigh(ohlcv, mid);
@@ -113,7 +113,7 @@ public class ProfitTrailDealingLogic {
 					count++;
 				}
 				try {
-					// $B$@$s$@$s%:%l$F$$$+$J$$$h$&$K(B50ms$BC10L$H$9$k(B
+					// だんだんズレていかないように50ms単位とする
 					Thread.sleep(50);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -150,58 +150,58 @@ public class ProfitTrailDealingLogic {
 		outputCurrentStatus();
 		int mid = getMidPrice();
 		if (side == BuySellEnum.BUY) {
-			// $B%m%s%0%]%8%7%g%s(B
-			// Mid$B$K%9%W%l%C%IJRB&J,$r8:;;(B
+			// ロングポジション
+			// Midにスプレッド片側分を減算
 			int bid = (int) (mid - mid * SPREAD / 200);
 			if (bid < lossCutLine || (trailing && bid <= trailLine)) {
-				// $B%m%9%+%C%H%i%$%s$r2<2s$C$?!"$^$?$O%H%l!<%kCf$K%H%l!<%k%i%$%s$r2<2s$C$?(B
-				// $B%]%8%7%g%s%/%m!<%:$7$F%I%F%s$5$;$k(B
+				// ロスカットラインを下回った、またはトレール中にトレールラインを下回った
+				// ポジションクローズしてドテンさせる
 				if (bid < lossCutLine) {
-					LOGGER.info("$B%m%s%0%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BBid:" + bid);
-					NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BBid:" + bid);
+					LOGGER.info("ロングポジション：ロスカットします。Bid:" + bid);
+					NOTIFIER.sendMessage("ロングポジション：ロスカットします。Bid:" + bid);
 				} else {
-					LOGGER.info("$B%m%s%0%]%8%7%g%s!'Mx3N$7$^$9!#(BBid:" + bid);
-					NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s!'Mx3N$7$^$9!#(BBid:" + bid);
+					LOGGER.info("ロングポジション：利確します。Bid:" + bid);
+					NOTIFIER.sendMessage("ロングポジション：利確します。Bid:" + bid);
 				}
-				// $B%I%F%s$5$;$k(B
+				// ドテンさせる
 				sell();
 			} else if (bid > trailLine) {
 				if (!trailing) {
-					// $B%H%l!<%k3+;O(B
-					LOGGER.info("$B%m%s%0%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BBid:" + bid);
-					NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BBid:" + bid);
+					// トレール開始
+					LOGGER.info("ロングポジション：トレール開始します。Bid:" + bid);
+					NOTIFIER.sendMessage("ロングポジション：トレール開始します。Bid:" + bid);
 					trailing = true;
 				} else {
-					// $B%H%l!<%k99?7(B
-					LOGGER.debug("$B%m%s%0%]%8%7%g%s!'%H%l!<%k99?7$7$^$9!#(BBid:" + bid);
+					// トレール更新
+					LOGGER.debug("ロングポジション：トレール更新します。Bid:" + bid);
 				}
 				trailLine = bid;
 			}
 		} else {
-			// $B%7%g!<%H%]%8%7%g%s(B
-			// Mid$B$K%9%W%l%C%IJRB&J,$r2C;;(B
+			// ショートポジション
+			// Midにスプレッド片側分を加算
 			int ask = (int) (mid + mid * SPREAD / 200);
 			if (ask > lossCutLine || (trailing && ask >= trailLine)) {
-				// $B%m%9%+%C%H%i%$%s$r>e2s$C$?!"$^$?$O%H%l!<%kCf$K%H%l!<%k%i%$%s$r>e2s$C$?(B
-				// $B%]%8%7%g%s%/%m!<%:$7$F%I%F%s$5$;$k(B
+				// ロスカットラインを上回った、またはトレール中にトレールラインを上回った
+				// ポジションクローズしてドテンさせる
 				if (ask > lossCutLine) {
-					LOGGER.info("$B%7%g!<%H%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BAsk:" + ask);
-					NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BAsk:" + ask);
+					LOGGER.info("ショートポジション：ロスカットします。Ask:" + ask);
+					NOTIFIER.sendMessage("ショートポジション：ロスカットします。Ask:" + ask);
 				} else {
-					LOGGER.info("$B%7%g!<%H%]%8%7%g%s!'Mx3N$7$^$9!#(BAsk:" + ask);
-					NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s!'Mx3N$7$^$9!#(BAsk:" + ask);
+					LOGGER.info("ショートポジション：利確します。Ask:" + ask);
+					NOTIFIER.sendMessage("ショートポジション：利確します。Ask:" + ask);
 				}
-				// $B%I%F%s$5$;$k(B
+				// ドテンさせる
 				buy();
 			} else if (ask < trailLine) {
 				if (!trailing) {
-					// $B%H%l!<%k3+;O(B
-					LOGGER.info("$B%7%g!<%H%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BAsk:" + ask);
-					NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BAsk:" + ask);
+					// トレール開始
+					LOGGER.info("ショートポジション：トレール開始します。Ask:" + ask);
+					NOTIFIER.sendMessage("ショートポジション：トレール開始します。Ask:" + ask);
 					trailing = true;
 				} else {
-					// $B%H%l!<%k99?7(B
-					LOGGER.debug("$B%7%g!<%H%]%8%7%g%s!'%H%l!<%k99?7$7$^$9!#(BAsk:" + ask);
+					// トレール更新
+					LOGGER.debug("ショートポジション：トレール更新します。Ask:" + ask);
 				}
 				trailLine = ask;
 			}
@@ -211,28 +211,28 @@ public class ProfitTrailDealingLogic {
 	private void buy() {
 		LOGGER.debug("buy!");
 		assert (this.side == null || this.side == BuySellEnum.SELL);
-		// $B?tNL7W;;(B
-		// $B%I%F%sJ,$N%7%g!<%H%]%8%7%g%s$r<hF@(B
+		// 数量計算
+		// ドテン分のショートポジションを取得
 		double positionSize = getPositionTotalSize(BuySellEnum.SELL);
 		int mid = getMidPrice();
 		this.mid = getMidPrice();
-		// Mid$B$K%9%W%l%C%IJRB&J,$r2C;;(B
+		// Midにスプレッド片側分を加算
 		int ask = (int) (mid + mid * SPREAD / 200);
 		int collateral = getCollateral();
 
-		// $B8m:9GS=|$9$k$?$a(B1000$BG\$K$9$k(B
+		// 誤差排除するため1000倍にする
 		int qtyX1000 = collateral * 1000 / ask;
 		if (qtyX1000 < 1) {
-			// 0.001$B0J2<$N>l9g$OH/Cm$7$J$$(B
-			LOGGER.info("$BH/Cm?tNL$,(B0.001$B0J2<$G$9!#(B");
+			// 0.001以下の場合は発注しない
+			LOGGER.info("発注数量が0.001以下です。");
 		} else {
 			double qty = qtyX1000 / 1000.000;
-			// $B%I%F%sJ,$r2C;;(B
+			// ドテン分を加算
 			double qtyWithDoten = qty + positionSize;
 			String qtyStr = String.format("%.3f", qtyWithDoten);
-			// $B9-$a$K2A3J$r7hDj(B(Mid$B$K(B1%$B>h$;$k(B)
+			// 広めに価格を決定(Midに1%乗せる)
 			int orderPrice = (int) (mid + mid * 0.01);
-			// $BGcH/Cm!J@.8y$7$?$H$_$J$9!K(B
+			// 買発注（成功したとみなす）
 			order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
 			resetPositionFields(ask, qty, BuySellEnum.BUY);
 		}
@@ -241,28 +241,28 @@ public class ProfitTrailDealingLogic {
 	private void sell() {
 		LOGGER.debug("sell!");
 		assert (this.side == null || this.side == BuySellEnum.BUY);
-		// $B?tNL7W;;(B
-		// $B%I%F%sJ,$N%7%g!<%H%]%8%7%g%s$r<hF@(B
+		// 数量計算
+		// ドテン分のショートポジションを取得
 		double positionSize = getPositionTotalSize(BuySellEnum.BUY);
 		int mid = getMidPrice();
 		this.mid = getMidPrice();
-		// Mid$B$K%9%W%l%C%IJRB&J,$r8:;;(B
+		// Midにスプレッド片側分を減算
 		int bid = (int) (mid - mid * SPREAD / 200);
 		int collateral = getCollateral();
 
-		// $B8m:9GS=|$9$k$?$a(B1000$BG\$K$9$k(B
+		// 誤差排除するため1000倍にする
 		int qtyX1000 = collateral * 1000 / bid;
 		if (qtyX1000 < 1) {
-			// 0.001$B0J2<$N>l9g$OH/Cm$7$J$$(B
-			LOGGER.info("$BH/Cm?tNL$,(B0.001$B0J2<$G$9!#(B");
+			// 0.001以下の場合は発注しない
+			LOGGER.info("発注数量が0.001以下です。");
 		} else {
 			double qty = qtyX1000 / 1000.000;
-			// $B%I%F%sJ,$r2C;;(B
+			// ドテン分を加算
 			double qtyWithDoten = qty + positionSize;
 			String qtyStr = String.format("%.3f", qtyWithDoten);
-			// $B9-$a$K2A3J$r7hDj(B(Mid$B$+$i(B1%$B0z$/(B)
+			// 広めに価格を決定(Midから1%引く)
 			int orderPrice = (int) (mid - mid * 0.01);
-			// $BGdH/Cm!J@.8y$7$?$H$_$J$9!K(B
+			// 売発注（成功したとみなす）
 			order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
 			resetPositionFields(bid, qty, BuySellEnum.SELL);
 		}
@@ -271,22 +271,22 @@ public class ProfitTrailDealingLogic {
 	private void positionClear() {
 		double longPositionSize = getPositionTotalSize(BuySellEnum.BUY);
 		if (longPositionSize != 0) {
-			LOGGER.info("$B%m%s%0%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + longPositionSize);
-			NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + longPositionSize);
+			LOGGER.info("ロングポジションをスクエアにします。数量：" + longPositionSize);
+			NOTIFIER.sendMessage("ロングポジションをスクエアにします。数量：" + longPositionSize);
 			int mid = getMidPrice();
-			// $B9-$a$K2A3J$r7hDj(B(Mid$B$+$i(B1%$B0z$/(B)
+			// 広めに価格を決定(Midから1%引く)
 			int orderPrice = (int) (mid - mid * 0.01);
-			// $BGdH/Cm!J@.8y$7$?$H$_$J$9!K(B
+			// 売発注（成功したとみなす）
 			order(BuySellEnum.SELL, orderPrice, longPositionSize);
 		} else {
 			double shortPositionSize = getPositionTotalSize(BuySellEnum.SELL);
 			if (shortPositionSize != 0) {
-				LOGGER.info("$B%7%g!<%H%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + shortPositionSize);
-				NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + shortPositionSize);
+				LOGGER.info("ショートポジションをスクエアにします。数量：" + shortPositionSize);
+				NOTIFIER.sendMessage("ショートポジションをスクエアにします。数量：" + shortPositionSize);
 				int mid = getMidPrice();
-				// $B9-$a$K2A3J$r7hDj(B(Mid$B$K(B1%$B>h$;$k(B)
+				// 広めに価格を決定(Midに1%乗せる)
 				int orderPrice = (int) (mid + mid * 0.01);
-				// $BGcH/Cm!J@.8y$7$?$H$_$J$9!K(B
+				// 買発注（成功したとみなす）
 				order(BuySellEnum.BUY, orderPrice, shortPositionSize);
 			}
 		}
@@ -301,11 +301,11 @@ public class ProfitTrailDealingLogic {
 
 	private void resetPositionFields(int entry, double size, BuySellEnum side) {
 		if (side == BuySellEnum.BUY) {
-			// $BGc$N>l9g!"%H%l!<%k%i%$%s$,9b$/!"%m%9%+%C%H%i%$%s$,0B$/(B
+			// 買の場合、トレールラインが高く、ロスカットラインが安く
 			this.trailLine = entry + (int) (entry * TRAIL_PERCENTAGE / 100);
 			this.lossCutLine = entry - (int) (entry * LOSS_CUT_PERCENTAGE / 100);
 		} else {
-			// $BGd$N>l9g!"%H%l!<%k%i%$%s$,0B$/!"%m%9%+%C%H%i%$%s$,9b$/(B
+			// 売の場合、トレールラインが安く、ロスカットラインが高く
 			this.trailLine = entry - (int) (entry * TRAIL_PERCENTAGE / 100);
 			this.lossCutLine = entry + (int) (entry * LOSS_CUT_PERCENTAGE / 100);
 		}
