@@ -41,7 +41,7 @@ public class ProfitTrailDealingLogic {
 		this.LOSS_CUT_PERCENTAGE = paramMap.get("lossCutPercentage");
 		@SuppressWarnings("unchecked")
 		Map<String, Double> logicParam = (Map<String, Double>) settings.get("logic");
-		// ƒpƒ‰ƒ[ƒ^o—Í
+		// $B%Q%i%a!<%?=PNO(B
 		StringBuilder sb = new StringBuilder();
 		sb.append("LogicParams");
 		logicParam.forEach((k, v) -> sb.append(" " + k + ":" + v));
@@ -51,59 +51,59 @@ public class ProfitTrailDealingLogic {
 	}
 
 	public void execute() {
-		// ‰Šú‰»
+		// $B=i4|2=(B
 		init();
-		// •ª‘«ì¬ƒXƒŒƒbƒh‚ÌŠJn(1•ª–ˆ‚Ìˆ—‚à·s”»’f‚à‚±‚Ì’†‚Ås‚¤)
+		// $BJ,B-:n@.%9%l%C%I$N3+;O(B(1$BJ,Kh$N=hM}$b<99TH=CG$b$3$NCf$G9T$&(B)
 		startOhlcvThread();
-		// ’èŠú’Ê’mƒXƒŒƒbƒh‚ÌŠJn(’èŠú“I‚ÉSlack’Ê’m)
+		// $BDj4|DLCN%9%l%C%I$N3+;O(B($BDj4|E*$K(BSlack$BDLCN(B)
 		startPeriodicalNotifyThread(INTERVAL);
 	}
 
 	private void init() {
-		// ƒ|ƒWƒVƒ‡ƒ“ƒNƒŠƒA
+		// $B%]%8%7%g%s%/%j%"(B
 		positionClear();
-		// ˆ—”½‰f‚Ü‚Å­‚µ‘Ò‚Â
+		// $B=hM}H?1G$^$G>/$7BT$D(B
 		try {
 			Thread.sleep(3000);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		// Ø‹’‹à•]‰¿Šzæ“¾
+		// $B>Z5r6bI>2A3[<hF@(B
 		int collateral = getCollateral();
-		LOGGER.info("Ø‹’‹à•]‰¿Šz:" + collateral);
-		// Å‰‚Í‚Æ‚è‚ ‚¦‚¸”ƒ‚¤
+		LOGGER.info("$B>Z5r6bI>2A3[(B:" + collateral);
+		// $B:G=i$O$H$j$"$($:Gc$&(B
 		buy();
 	}
 
 	private void startOhlcvThread() {
-		// –ˆ•bMid‚ğæ“¾‚µA•ª‘«‚ğì¬‚·‚éƒXƒŒƒbƒh
+		// $BKhIC(BMid$B$r<hF@$7!"J,B-$r:n@.$9$k%9%l%C%I(B
 		Thread t = new Thread(() -> {
 			int lastSecond = -1;
 			int count = 0;
 			int[] ohlcv = new int[4];
-			// ƒI[ƒo[ƒwƒbƒhŒ¸‚ç‚·‚½‚ßAÅ‰ˆê‰ñƒŠƒNƒGƒXƒg‚µ‚Ä‚¨‚­
+			// $B%*!<%P!<%X%C%I8:$i$9$?$a!":G=i0l2s%j%/%(%9%H$7$F$*$/(B
 			getMidPrice();
 			while (true) {
 				LocalDateTime now = LocalDateTime.now();
 				int second = now.getSecond();
 				if (second != lastSecond) {
-					// •b‚ª•Ï‚í‚Á‚½‚çMidæ“¾
+					// $BIC$,JQ$o$C$?$i(BMid$B<hF@(B
 					int mid = getMidPrice();
-					LOGGER.debug("Midæ“¾Œ‹‰ÊF" + mid + " :" + now);
+					LOGGER.debug("Mid$B<hF@7k2L!'(B" + mid + " $B;~9o(B:" + now);
 					this.mid = mid;
-					// High,Low‚ÌXVƒ`ƒFƒbƒN
+					// High,Low$B$N99?7%A%'%C%/(B
 					ohlcv = OHLCVUtil.replaceHighAndLow(ohlcv, mid);
 					if (count % 60 == 0) {
-						// 1•ª–ˆ‚Ìˆ—
+						// 1$BJ,Kh$N=hM}(B
 						if (count != 0) {
-							// ‰‰ñ‚Íœ‚­
-							// ‘O‚Ì•ª‘«‚Éclose‚ğİ’è
+							// $B=i2s$O=|$/(B
+							// $BA0$NJ,B-$K(Bclose$B$r@_Dj(B
 							ohlcv = OHLCVUtil.setClose(ohlcv, mid);
-							// ·s”»’f
+							// $B<99TH=CG(B
 							judge();
 							LOGGER.debug(OHLCVUtil.toString(ohlcv));
 						}
-						// OHLCV‚Ì‰Šú‰»‚Æopen,high,low‚Ìİ’è
+						// OHLCV$B$N=i4|2=$H(Bopen,high,low$B$N@_Dj(B
 						ohlcv = new int[4];
 						ohlcv = OHLCVUtil.setOpen(ohlcv, mid);
 						ohlcv = OHLCVUtil.setHigh(ohlcv, mid);
@@ -113,7 +113,7 @@ public class ProfitTrailDealingLogic {
 					count++;
 				}
 				try {
-					// ‚¾‚ñ‚¾‚ñƒYƒŒ‚Ä‚¢‚©‚È‚¢‚æ‚¤‚É50ms’PˆÊ‚Æ‚·‚é
+					// $B$@$s$@$s%:%l$F$$$+$J$$$h$&$K(B50ms$BC10L$H$9$k(B
 					Thread.sleep(50);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -150,58 +150,58 @@ public class ProfitTrailDealingLogic {
 		outputCurrentStatus();
 		int mid = getMidPrice();
 		if (side == BuySellEnum.BUY) {
-			// ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“
-			// Mid‚ÉƒXƒvƒŒƒbƒh•Ğ‘¤•ª‚ğŒ¸Z
+			// $B%m%s%0%]%8%7%g%s(B
+			// Mid$B$K%9%W%l%C%IJRB&J,$r8:;;(B
 			int bid = (int) (mid - mid * SPREAD / 200);
 			if (bid < lossCutLine || (trailing && bid <= trailLine)) {
-				// ƒƒXƒJƒbƒgƒ‰ƒCƒ“‚ğ‰º‰ñ‚Á‚½A‚Ü‚½‚ÍƒgƒŒ[ƒ‹’†‚ÉƒgƒŒ[ƒ‹ƒ‰ƒCƒ“‚ğ‰º‰ñ‚Á‚½
-				// ƒ|ƒWƒVƒ‡ƒ“ƒNƒ[ƒY‚µ‚Äƒhƒeƒ“‚³‚¹‚é
+				// $B%m%9%+%C%H%i%$%s$r2<2s$C$?!"$^$?$O%H%l!<%kCf$K%H%l!<%k%i%$%s$r2<2s$C$?(B
+				// $B%]%8%7%g%s%/%m!<%:$7$F%I%F%s$5$;$k(B
 				if (bid < lossCutLine) {
-					LOGGER.info("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“FƒƒXƒJƒbƒg‚µ‚Ü‚·BBid:" + bid);
-					NOTIFIER.sendMessage("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“FƒƒXƒJƒbƒg‚µ‚Ü‚·BBid:" + bid);
+					LOGGER.info("$B%m%s%0%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BBid:" + bid);
+					NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BBid:" + bid);
 				} else {
-					LOGGER.info("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“F—˜Šm‚µ‚Ü‚·BBid:" + bid);
-					NOTIFIER.sendMessage("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“F—˜Šm‚µ‚Ü‚·BBid:" + bid);
+					LOGGER.info("$B%m%s%0%]%8%7%g%s!'Mx3N$7$^$9!#(BBid:" + bid);
+					NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s!'Mx3N$7$^$9!#(BBid:" + bid);
 				}
-				// ƒhƒeƒ“‚³‚¹‚é
+				// $B%I%F%s$5$;$k(B
 				sell();
 			} else if (bid > trailLine) {
 				if (!trailing) {
-					// ƒgƒŒ[ƒ‹ŠJn
-					LOGGER.info("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“FƒgƒŒ[ƒ‹ŠJn‚µ‚Ü‚·BBid:" + bid);
-					NOTIFIER.sendMessage("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“FƒgƒŒ[ƒ‹ŠJn‚µ‚Ü‚·BBid:" + bid);
+					// $B%H%l!<%k3+;O(B
+					LOGGER.info("$B%m%s%0%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BBid:" + bid);
+					NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BBid:" + bid);
 					trailing = true;
 				} else {
-					// ƒgƒŒ[ƒ‹XV
-					LOGGER.debug("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“FƒgƒŒ[ƒ‹XV‚µ‚Ü‚·BBid:" + bid);
+					// $B%H%l!<%k99?7(B
+					LOGGER.debug("$B%m%s%0%]%8%7%g%s!'%H%l!<%k99?7$7$^$9!#(BBid:" + bid);
 				}
 				trailLine = bid;
 			}
 		} else {
-			// ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“
-			// Mid‚ÉƒXƒvƒŒƒbƒh•Ğ‘¤•ª‚ğ‰ÁZ
+			// $B%7%g!<%H%]%8%7%g%s(B
+			// Mid$B$K%9%W%l%C%IJRB&J,$r2C;;(B
 			int ask = (int) (mid + mid * SPREAD / 200);
 			if (ask > lossCutLine || (trailing && ask >= trailLine)) {
-				// ƒƒXƒJƒbƒgƒ‰ƒCƒ“‚ğã‰ñ‚Á‚½A‚Ü‚½‚ÍƒgƒŒ[ƒ‹’†‚ÉƒgƒŒ[ƒ‹ƒ‰ƒCƒ“‚ğã‰ñ‚Á‚½
-				// ƒ|ƒWƒVƒ‡ƒ“ƒNƒ[ƒY‚µ‚Äƒhƒeƒ“‚³‚¹‚é
+				// $B%m%9%+%C%H%i%$%s$r>e2s$C$?!"$^$?$O%H%l!<%kCf$K%H%l!<%k%i%$%s$r>e2s$C$?(B
+				// $B%]%8%7%g%s%/%m!<%:$7$F%I%F%s$5$;$k(B
 				if (ask > lossCutLine) {
-					LOGGER.info("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“FƒƒXƒJƒbƒg‚µ‚Ü‚·BAsk:" + ask);
-					NOTIFIER.sendMessage("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“FƒƒXƒJƒbƒg‚µ‚Ü‚·BAsk:" + ask);
+					LOGGER.info("$B%7%g!<%H%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BAsk:" + ask);
+					NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s!'%m%9%+%C%H$7$^$9!#(BAsk:" + ask);
 				} else {
-					LOGGER.info("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“F—˜Šm‚µ‚Ü‚·BAsk:" + ask);
-					NOTIFIER.sendMessage("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“F—˜Šm‚µ‚Ü‚·BAsk:" + ask);
+					LOGGER.info("$B%7%g!<%H%]%8%7%g%s!'Mx3N$7$^$9!#(BAsk:" + ask);
+					NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s!'Mx3N$7$^$9!#(BAsk:" + ask);
 				}
-				// ƒhƒeƒ“‚³‚¹‚é
+				// $B%I%F%s$5$;$k(B
 				buy();
 			} else if (ask < trailLine) {
 				if (!trailing) {
-					// ƒgƒŒ[ƒ‹ŠJn
-					LOGGER.info("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“FƒgƒŒ[ƒ‹ŠJn‚µ‚Ü‚·BAsk:" + ask);
-					NOTIFIER.sendMessage("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“FƒgƒŒ[ƒ‹ŠJn‚µ‚Ü‚·BAsk:" + ask);
+					// $B%H%l!<%k3+;O(B
+					LOGGER.info("$B%7%g!<%H%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BAsk:" + ask);
+					NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s!'%H%l!<%k3+;O$7$^$9!#(BAsk:" + ask);
 					trailing = true;
 				} else {
-					// ƒgƒŒ[ƒ‹XV
-					LOGGER.debug("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“FƒgƒŒ[ƒ‹XV‚µ‚Ü‚·BAsk:" + ask);
+					// $B%H%l!<%k99?7(B
+					LOGGER.debug("$B%7%g!<%H%]%8%7%g%s!'%H%l!<%k99?7$7$^$9!#(BAsk:" + ask);
 				}
 				trailLine = ask;
 			}
@@ -211,28 +211,28 @@ public class ProfitTrailDealingLogic {
 	private void buy() {
 		LOGGER.debug("buy!");
 		assert (this.side == null || this.side == BuySellEnum.SELL);
-		// ”—ÊŒvZ
-		// ƒhƒeƒ“•ª‚ÌƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“‚ğæ“¾
+		// $B?tNL7W;;(B
+		// $B%I%F%sJ,$N%7%g!<%H%]%8%7%g%s$r<hF@(B
 		double positionSize = getPositionTotalSize(BuySellEnum.SELL);
 		int mid = getMidPrice();
 		this.mid = getMidPrice();
-		// Mid‚ÉƒXƒvƒŒƒbƒh•Ğ‘¤•ª‚ğ‰ÁZ
+		// Mid$B$K%9%W%l%C%IJRB&J,$r2C;;(B
 		int ask = (int) (mid + mid * SPREAD / 200);
 		int collateral = getCollateral();
 
-		// Œë·”rœ‚·‚é‚½‚ß1000”{‚É‚·‚é
+		// $B8m:9GS=|$9$k$?$a(B1000$BG\$K$9$k(B
 		int qtyX1000 = collateral * 1000 / ask;
 		if (qtyX1000 < 1) {
-			// 0.001ˆÈ‰º‚Ìê‡‚Í”­’‚µ‚È‚¢
-			LOGGER.info("”­’”—Ê‚ª0.001ˆÈ‰º‚Å‚·B");
+			// 0.001$B0J2<$N>l9g$OH/Cm$7$J$$(B
+			LOGGER.info("$BH/Cm?tNL$,(B0.001$B0J2<$G$9!#(B");
 		} else {
 			double qty = qtyX1000 / 1000.000;
-			// ƒhƒeƒ“•ª‚ğ‰ÁZ
+			// $B%I%F%sJ,$r2C;;(B
 			double qtyWithDoten = qty + positionSize;
 			String qtyStr = String.format("%.3f", qtyWithDoten);
-			// L‚ß‚É‰¿Ši‚ğŒˆ’è(Mid‚É1%æ‚¹‚é)
+			// $B9-$a$K2A3J$r7hDj(B(Mid$B$K(B1%$B>h$;$k(B)
 			int orderPrice = (int) (mid + mid * 0.01);
-			// ”ƒ”­’i¬Œ÷‚µ‚½‚Æ‚İ‚È‚·j
+			// $BGcH/Cm!J@.8y$7$?$H$_$J$9!K(B
 			order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
 			resetPositionFields(ask, qty, BuySellEnum.BUY);
 		}
@@ -241,28 +241,28 @@ public class ProfitTrailDealingLogic {
 	private void sell() {
 		LOGGER.debug("sell!");
 		assert (this.side == null || this.side == BuySellEnum.BUY);
-		// ”—ÊŒvZ
-		// ƒhƒeƒ“•ª‚ÌƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“‚ğæ“¾
+		// $B?tNL7W;;(B
+		// $B%I%F%sJ,$N%7%g!<%H%]%8%7%g%s$r<hF@(B
 		double positionSize = getPositionTotalSize(BuySellEnum.BUY);
 		int mid = getMidPrice();
 		this.mid = getMidPrice();
-		// Mid‚ÉƒXƒvƒŒƒbƒh•Ğ‘¤•ª‚ğŒ¸Z
+		// Mid$B$K%9%W%l%C%IJRB&J,$r8:;;(B
 		int bid = (int) (mid - mid * SPREAD / 200);
 		int collateral = getCollateral();
 
-		// Œë·”rœ‚·‚é‚½‚ß1000”{‚É‚·‚é
+		// $B8m:9GS=|$9$k$?$a(B1000$BG\$K$9$k(B
 		int qtyX1000 = collateral * 1000 / bid;
 		if (qtyX1000 < 1) {
-			// 0.001ˆÈ‰º‚Ìê‡‚Í”­’‚µ‚È‚¢
-			LOGGER.info("”­’”—Ê‚ª0.001ˆÈ‰º‚Å‚·B");
+			// 0.001$B0J2<$N>l9g$OH/Cm$7$J$$(B
+			LOGGER.info("$BH/Cm?tNL$,(B0.001$B0J2<$G$9!#(B");
 		} else {
 			double qty = qtyX1000 / 1000.000;
-			// ƒhƒeƒ“•ª‚ğ‰ÁZ
+			// $B%I%F%sJ,$r2C;;(B
 			double qtyWithDoten = qty + positionSize;
 			String qtyStr = String.format("%.3f", qtyWithDoten);
-			// L‚ß‚É‰¿Ši‚ğŒˆ’è(Mid‚©‚ç1%ˆø‚­)
+			// $B9-$a$K2A3J$r7hDj(B(Mid$B$+$i(B1%$B0z$/(B)
 			int orderPrice = (int) (mid - mid * 0.01);
-			// ”„”­’i¬Œ÷‚µ‚½‚Æ‚İ‚È‚·j
+			// $BGdH/Cm!J@.8y$7$?$H$_$J$9!K(B
 			order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
 			resetPositionFields(bid, qty, BuySellEnum.SELL);
 		}
@@ -271,22 +271,22 @@ public class ProfitTrailDealingLogic {
 	private void positionClear() {
 		double longPositionSize = getPositionTotalSize(BuySellEnum.BUY);
 		if (longPositionSize != 0) {
-			LOGGER.info("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“‚ğƒXƒNƒGƒA‚É‚µ‚Ü‚·B”—ÊF" + longPositionSize);
-			NOTIFIER.sendMessage("ƒƒ“ƒOƒ|ƒWƒVƒ‡ƒ“‚ğƒXƒNƒGƒA‚É‚µ‚Ü‚·B”—ÊF" + longPositionSize);
+			LOGGER.info("$B%m%s%0%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + longPositionSize);
+			NOTIFIER.sendMessage("$B%m%s%0%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + longPositionSize);
 			int mid = getMidPrice();
-			// L‚ß‚É‰¿Ši‚ğŒˆ’è(Mid‚©‚ç1%ˆø‚­)
+			// $B9-$a$K2A3J$r7hDj(B(Mid$B$+$i(B1%$B0z$/(B)
 			int orderPrice = (int) (mid - mid * 0.01);
-			// ”„”­’i¬Œ÷‚µ‚½‚Æ‚İ‚È‚·j
+			// $BGdH/Cm!J@.8y$7$?$H$_$J$9!K(B
 			order(BuySellEnum.SELL, orderPrice, longPositionSize);
 		} else {
 			double shortPositionSize = getPositionTotalSize(BuySellEnum.SELL);
 			if (shortPositionSize != 0) {
-				LOGGER.info("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“‚ğƒXƒNƒGƒA‚É‚µ‚Ü‚·B”—ÊF" + shortPositionSize);
-				NOTIFIER.sendMessage("ƒVƒ‡[ƒgƒ|ƒWƒVƒ‡ƒ“‚ğƒXƒNƒGƒA‚É‚µ‚Ü‚·B”—ÊF" + shortPositionSize);
+				LOGGER.info("$B%7%g!<%H%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + shortPositionSize);
+				NOTIFIER.sendMessage("$B%7%g!<%H%]%8%7%g%s$r%9%/%(%"$K$7$^$9!#?tNL!'(B" + shortPositionSize);
 				int mid = getMidPrice();
-				// L‚ß‚É‰¿Ši‚ğŒˆ’è(Mid‚É1%æ‚¹‚é)
+				// $B9-$a$K2A3J$r7hDj(B(Mid$B$K(B1%$B>h$;$k(B)
 				int orderPrice = (int) (mid + mid * 0.01);
-				// ”ƒ”­’i¬Œ÷‚µ‚½‚Æ‚İ‚È‚·j
+				// $BGcH/Cm!J@.8y$7$?$H$_$J$9!K(B
 				order(BuySellEnum.BUY, orderPrice, shortPositionSize);
 			}
 		}
@@ -301,11 +301,11 @@ public class ProfitTrailDealingLogic {
 
 	private void resetPositionFields(int entry, double size, BuySellEnum side) {
 		if (side == BuySellEnum.BUY) {
-			// ”ƒ‚Ìê‡AƒgƒŒ[ƒ‹ƒ‰ƒCƒ“‚ª‚‚­AƒƒXƒJƒbƒgƒ‰ƒCƒ“‚ªˆÀ‚­
+			// $BGc$N>l9g!"%H%l!<%k%i%$%s$,9b$/!"%m%9%+%C%H%i%$%s$,0B$/(B
 			this.trailLine = entry + (int) (entry * TRAIL_PERCENTAGE / 100);
 			this.lossCutLine = entry - (int) (entry * LOSS_CUT_PERCENTAGE / 100);
 		} else {
-			// ”„‚Ìê‡AƒgƒŒ[ƒ‹ƒ‰ƒCƒ“‚ªˆÀ‚­AƒƒXƒJƒbƒgƒ‰ƒCƒ“‚ª‚‚­
+			// $BGd$N>l9g!"%H%l!<%k%i%$%s$,0B$/!"%m%9%+%C%H%i%$%s$,9b$/(B
 			this.trailLine = entry - (int) (entry * TRAIL_PERCENTAGE / 100);
 			this.lossCutLine = entry + (int) (entry * LOSS_CUT_PERCENTAGE / 100);
 		}

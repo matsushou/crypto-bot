@@ -19,28 +19,28 @@ public class BotMain {
 	private static Map<String, Object> settings;
 
 	public static void main(String[] args) {
-		LOGGER.info("bot‹N“®‚µ‚Ü‚·c");
-		// ƒXƒŒƒbƒh‚ÌƒƒOo—Íİ’è
+		LOGGER.info("bot$B5/F0$7$^$9!D(B");
+		// $B%9%l%C%I$N%m%0=PNO@_Dj(B
 		Thread.UncaughtExceptionHandler dueh = Thread.getDefaultUncaughtExceptionHandler();
 		if (dueh == null) {
 			Thread.setDefaultUncaughtExceptionHandler((Thread t, Throwable e) -> {
-				LOGGER.error("—áŠO”­¶I", e);
+				LOGGER.error("$BNc30H/@8!*(B", e);
 			});
 		}
-		// İ’è’l“Ç‚İ‚İ
+		// $B@_DjCMFI$_9~$_(B
 		settings = loadSettings();
 		wrapper = BitFlyerAPIWrapper.getInstance(settings);
 		System.out.println(wrapper.getCollateral().getCollateral());
 		notifier = SlackNotifier.getInstance(settings);
 		@SuppressWarnings("unchecked")
 		Map<String, Double> paramMap = (Map<String, Double>) settings.get("common");
-		// ƒpƒ‰ƒ[ƒ^o—Í
+		// $B%Q%i%a!<%?=PNO(B
 		StringBuilder sb = new StringBuilder();
 		sb.append("CommonParams");
 		paramMap.forEach((k, v) -> sb.append(" " + k + ":" + v));
 		LOGGER.info(sb.toString());
 		ProfitTrailDealingLogic logic = new ProfitTrailDealingLogic(wrapper, notifier, paramMap, settings);
-		LOGGER.info("ƒƒWƒbƒNŠJn‚µ‚Ü‚·c");
+		LOGGER.info("$B%m%8%C%/3+;O$7$^$9!D(B");
 		notifier.sendMessage("LOGIC START!");
 		logic.execute();
 	}

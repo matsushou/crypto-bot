@@ -16,7 +16,7 @@ public class CollateralResponse {
 	private String keepRate;
 
 	/**
-	 * @return —a‚¯“ü‚ê‚½Ø‹’‹à‚Ì•]‰¿Šz(‰~)
+	 * @return $BMB$1F~$l$?>Z5r6b$NI>2A3[(B($B1_(B)
 	 */
 	public int getCollateral() {
 		return collateral;
@@ -27,7 +27,7 @@ public class CollateralResponse {
 	}
 
 	/**
-	 * @return Œš‹Ê‚Ì•]‰¿‘¹‰v(‰~)
+	 * @return $B7z6L$NI>2AB;1W(B($B1_(B)
 	 */
 	public String getOpenPositionPnl() {
 		return openPositionPnl;
@@ -38,7 +38,7 @@ public class CollateralResponse {
 	}
 
 	/**
-	 * @return Œ»İ‚Ì•K—vØ‹’‹à(‰~)
+	 * @return $B8=:_$NI,MW>Z5r6b(B($B1_(B)
 	 */
 	public String getRequireCollateral() {
 		return requireCollateral;
@@ -49,7 +49,7 @@ public class CollateralResponse {
 	}
 
 	/**
-	 * @return Œ»İ‚ÌØ‹’‹àˆÛ—¦
+	 * @return $B8=:_$N>Z5r6b0];}N((B
 	 */
 	public String getKeepRate() {
 		return keepRate;

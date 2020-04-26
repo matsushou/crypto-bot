@@ -33,7 +33,7 @@ public class SlackNotifier {
 	private SlackNotifier(Map<String, Object> settings) {
 		@SuppressWarnings("unchecked")
 		Map<String, String> slackParam = (Map<String, String>) settings.get("slack");
-		// ƒpƒ‰ƒ[ƒ^o—Í
+		// $B%Q%i%a!<%?=PNO(B
 		StringBuilder sb = new StringBuilder();
 		sb.append("SlackParams");
 		slackParam.forEach((k, v) -> sb.append(" " + k + ":" + v));
