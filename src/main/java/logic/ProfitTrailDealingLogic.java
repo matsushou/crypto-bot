@@ -22,14 +22,14 @@ public class ProfitTrailDealingLogic {
 	private final double LOSS_CUT_PERCENTAGE;
 	private final double SPREAD;
 	private final int INTERVAL;
-	private int trailLine = -1;
-	private int lossCutLine = -1;
-	private boolean trailing = false;
-	private int entry = -1;
-	private BuySellEnum side;
-	private double size;
-	private int collateral = -1;
-	private int mid = -1;
+	private volatile int trailLine = -1;
+	private volatile int lossCutLine = -1;
+	private volatile boolean trailing = false;
+	private volatile int entry = -1;
+	private volatile BuySellEnum side;
+	private volatile double size;
+	private volatile int collateral = -1;
+	private volatile int mid = -1;
 
 	private static Logger LOGGER = LogManager.getLogger(ProfitTrailDealingLogic.class);
 
@@ -71,7 +71,7 @@ public class ProfitTrailDealingLogic {
 		// 証拠金評価額取得
 		int collateral = getCollateral();
 		LOGGER.info("証拠金評価額:" + collateral);
-		// 最初はとりあえず買う
+		// 最初はとりあえず買う(メンテナンス中の起動は想定しない)
 		buy();
 	}
 
@@ -211,6 +211,13 @@ public class ProfitTrailDealingLogic {
 	private void buy() {
 		LOGGER.debug("buy!");
 		assert (this.side == null || this.side == BuySellEnum.SELL);
+		double longPositionSize = getPositionTotalSize(BuySellEnum.BUY);
+		assert (longPositionSize == 0);
+		if (!WRAPPER.isHealthy()) {
+			String status = WRAPPER.getHealth().getStatus();
+			LOGGER.info("取引所の状態が通常ではないため、買発注をスキップします。ステータス：" + status);
+			NOTIFIER.sendMessage("取引所の状態が通常ではないため、買発注をスキップします。ステータス：" + status);
+		}
 		// 数量計算
 		// ドテン分のショートポジションを取得
 		double positionSize = getPositionTotalSize(BuySellEnum.SELL);
@@ -232,15 +239,24 @@ public class ProfitTrailDealingLogic {
 			String qtyStr = String.format("%.3f", qtyWithDoten);
 			// 広めに価格を決定(Midに1%乗せる)
 			int orderPrice = (int) (mid + mid * 0.01);
-			// 買発注（成功したとみなす）
-			order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
-			resetPositionFields(ask, qty, BuySellEnum.BUY);
+			// 買発注
+			ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
+			if (response != null) {
+				resetPositionFields(ask, qty, BuySellEnum.BUY);
+			}
 		}
 	}
 
 	private void sell() {
 		LOGGER.debug("sell!");
 		assert (this.side == null || this.side == BuySellEnum.BUY);
+		double shortPositionSize = getPositionTotalSize(BuySellEnum.SELL);
+		assert (shortPositionSize == 0);
+		if (!WRAPPER.isHealthy()) {
+			String status = WRAPPER.getHealth().getStatus();
+			LOGGER.info("取引所の状態が通常ではないため、売発注をスキップします。ステータス：" + status);
+			NOTIFIER.sendMessage("取引所の状態が通常ではないため、売発注をスキップします。ステータス：" + status);
+		}
 		// 数量計算
 		// ドテン分のショートポジションを取得
 		double positionSize = getPositionTotalSize(BuySellEnum.BUY);
@@ -262,9 +278,11 @@ public class ProfitTrailDealingLogic {
 			String qtyStr = String.format("%.3f", qtyWithDoten);
 			// 広めに価格を決定(Midから1%引く)
 			int orderPrice = (int) (mid - mid * 0.01);
-			// 売発注（成功したとみなす）
-			order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
-			resetPositionFields(bid, qty, BuySellEnum.SELL);
+			// 売発注
+			ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
+			if (response != null) {
+				resetPositionFields(bid, qty, BuySellEnum.SELL);
+			}
 		}
 	}
 
@@ -276,8 +294,8 @@ public class ProfitTrailDealingLogic {
 			int mid = getMidPrice();
 			// 広めに価格を決定(Midから1%引く)
 			int orderPrice = (int) (mid - mid * 0.01);
-			// 売発注（成功したとみなす）
-			order(BuySellEnum.SELL, orderPrice, longPositionSize);
+			// リトライありで売発注
+			orderWithRetry(BuySellEnum.SELL, orderPrice, longPositionSize);
 		} else {
 			double shortPositionSize = getPositionTotalSize(BuySellEnum.SELL);
 			if (shortPositionSize != 0) {
@@ -286,16 +304,52 @@ public class ProfitTrailDealingLogic {
 				int mid = getMidPrice();
 				// 広めに価格を決定(Midに1%乗せる)
 				int orderPrice = (int) (mid + mid * 0.01);
-				// 買発注（成功したとみなす）
-				order(BuySellEnum.BUY, orderPrice, shortPositionSize);
+				// リトライありで買発注
+				orderWithRetry(BuySellEnum.BUY, orderPrice, shortPositionSize);
 			}
 		}
 	}
 
 	private ChildOrderResponse order(BuySellEnum side, int price, double size) {
-		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size);
-		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size);
+		if (!WRAPPER.isHealthy()) {
+			String status = WRAPPER.getHealth().getStatus();
+			LOGGER.info("取引所の状態が通常ではないため、発注をスキップします。side:" + side + "ステータス：" + status);
+			NOTIFIER.sendMessage("取引所の状態が通常ではないため、発注をスキップします。side:" + side + "ステータス：" + status);
+			return null;
+		}
 		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ response.getChildOrderAcceptanceId());
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ response.getChildOrderAcceptanceId());
+		return response;
+	}
+
+	private ChildOrderResponse orderWithRetry(BuySellEnum side, int price, double size) {
+		boolean healthy = WRAPPER.isHealthy();
+		if (!healthy) {
+			for (int i = 0; i < 20; i++) {
+				// 1分待つ
+				try {
+					Thread.sleep(60000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				healthy = WRAPPER.isHealthy();
+				if (healthy) {
+					break;
+				}
+			}
+		}
+		if (!healthy) {
+			// リトライしても正常にならない場合は例外送出
+			throw new IllegalStateException("取引所の状態が異常な状態が続いています。ステータス:" + WRAPPER.getHealth().getStatus());
+		}
+		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ response.getChildOrderAcceptanceId());
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ response.getChildOrderAcceptanceId());
 		return response;
 	}
 
@@ -319,15 +373,17 @@ public class ProfitTrailDealingLogic {
 	}
 
 	private void outputCurrentStatus() {
-		LOGGER.info("[current status] collateral:" + this.collateral + " entry:" + this.entry + " trailLine:"
-				+ this.trailLine + " lossCutLine:" + this.lossCutLine + " side:" + this.side + " size:" + this.size
-				+ " trailing:" + this.trailing + " mid:" + this.mid);
+		LOGGER.info(
+				"[current status] collateral:" + this.collateral + " side:" + (this.side == BuySellEnum.BUY ? "買" : "売")
+						+ " size:" + this.size + " entry:" + this.entry + " trailLine:" + this.trailLine
+						+ " lossCutLine:" + this.lossCutLine + " trailing:" + this.trailing + " mid:" + this.mid);
 	}
 
 	private void outputCurrentStatusSlack() {
-		NOTIFIER.sendMessage("[current status] collateral:" + this.collateral + " entry:" + this.entry + " trailLine:"
-				+ this.trailLine + " lossCutLine:" + this.lossCutLine + " side:" + this.side + " size:" + this.size
-				+ " trailing:" + this.trailing + " mid:" + this.mid);
+		NOTIFIER.sendMessage(
+				"[current status] collateral:" + this.collateral + " side:" + (this.side == BuySellEnum.BUY ? "買" : "売")
+						+ " size:" + this.size + " entry:" + this.entry + " trailLine:" + this.trailLine
+						+ " lossCutLine:" + this.lossCutLine + " trailing:" + this.trailing + " mid:" + this.mid);
 	}
 
 	private double getPositionTotalSize(BuySellEnum side) {

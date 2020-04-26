@@ -25,6 +25,7 @@ import model.BoardResponse;
 import model.BuySellEnum;
 import model.ChildOrderResponse;
 import model.CollateralResponse;
+import model.HealthResponse;
 import model.PositionResponse;
 
 public class BitFlyerAPIWrapper {
@@ -40,6 +41,8 @@ public class BitFlyerAPIWrapper {
 	private final String GETPOSITIONS_API = "/v1/me/getpositions?product_code=FX_BTC_JPY";
 
 	private final String GETCOLLATERAL_API = "/v1/me/getcollateral";
+
+	private final String GETHEALTH_API = "/v1/gethealth?product_code=FX_BTC_JPY";
 
 	private final String ACCESS_KEY_HEADER = "ACCESS-KEY";
 
@@ -97,7 +100,7 @@ public class BitFlyerAPIWrapper {
 				int status = response.statusCode();
 				if (status >= 500) {
 					// 500番台ならリトライ
-					LOGGER.info("try retry...");
+					LOGGER.info("[getboard]try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
 				}
@@ -132,7 +135,7 @@ public class BitFlyerAPIWrapper {
 				int status = response.statusCode();
 				if (status >= 500) {
 					// 500番台ならリトライ
-					LOGGER.info("try retry...");
+					LOGGER.info("[getbalance]try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
 				}
@@ -174,7 +177,7 @@ public class BitFlyerAPIWrapper {
 				int status = response.statusCode();
 				if (status >= 500) {
 					// 500番台ならリトライ
-					LOGGER.info("try retry...");
+					LOGGER.info("[sendchildorder]try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
 				}
@@ -208,7 +211,7 @@ public class BitFlyerAPIWrapper {
 				int status = response.statusCode();
 				if (status >= 500) {
 					// 500番台ならリトライ
-					LOGGER.info("try retry...");
+					LOGGER.info("[getpositions]try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
 				}
@@ -242,7 +245,7 @@ public class BitFlyerAPIWrapper {
 				int status = response.statusCode();
 				if (status >= 500) {
 					// 500番台ならリトライ
-					LOGGER.info("try retry...");
+					LOGGER.info("[getcollateral]try retry...");
 					Thread.sleep(RETRY_INTERVAL_MSEC);
 					continue;
 				}
@@ -258,6 +261,42 @@ public class BitFlyerAPIWrapper {
 			}
 		}
 		return collateralResponse;
+	}
+
+	public HealthResponse getHealth() {
+		HealthResponse healthResponse = null;
+		String responseBody = null;
+		for (int i = 0; i < RETRY_COUNT; i++) {
+			try {
+				HttpRequest request = HttpRequest.newBuilder(URI.create(ENDPOINT + GETHEALTH_API)).build();
+
+				BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
+				int status = response.statusCode();
+				if (status >= 500) {
+					// 500番台ならリトライ
+					LOGGER.info("[gethealth]try retry...");
+					Thread.sleep(RETRY_INTERVAL_MSEC);
+					continue;
+				}
+				responseBody = response.body();
+
+				ObjectMapper mapper = new ObjectMapper();
+				healthResponse = mapper.readValue(responseBody, HealthResponse.class);
+				break;
+			} catch (JsonProcessingException e) {
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return healthResponse;
+	}
+
+	public boolean isHealthy() {
+		HealthResponse response = getHealth();
+		String status = response.getStatus();
+		return status.equals("NORMAL") || status.equals("BUSY") || status.equals("VERY BUSY");
 	}
 
 	private String createSign(String timestamp, String method, String path, String body) {
