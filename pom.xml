@@ -116,7 +116,7 @@
       <uniqueVersion>false</uniqueVersion>
       <id>github</id>
       <name>GitHub Repository</name>
-      <url>https://maven.pkg.github.com/matsushou</url>
+      <url>https://maven.pkg.github.com/matsushou/crypto-bot</url>
       <layout>default</layout>
     </repository>
   </distributionManagement>
