@@ -117,6 +117,7 @@
       <id>github</id>
       <name>GitHub Repository</name>
       <url>https://maven.pkg.github.com/matsushou</url>
+      <layout>default</layout>
     </repository>
   </distributionManagement>
 </project>
