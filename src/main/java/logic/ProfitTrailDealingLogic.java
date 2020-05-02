@@ -210,9 +210,13 @@ public class ProfitTrailDealingLogic {
 
 	private void buy() {
 		LOGGER.debug("buy!");
-		assert (this.side == null || this.side == BuySellEnum.SELL);
+		if (this.side == BuySellEnum.BUY) {
+			throw new IllegalStateException("sideがBUYの時に買注文を出そうとしています。");
+		}
 		double longPositionSize = getPositionTotalSize(BuySellEnum.BUY);
-		assert (longPositionSize == 0);
+		if (longPositionSize != 0) {
+			throw new IllegalStateException("ロングポジションがある状態で買注文を出そうとしています。数量：" + longPositionSize);
+		}
 		if (!WRAPPER.isHealthy()) {
 			String status = WRAPPER.getHealth().getStatus();
 			LOGGER.info("取引所の状態が通常ではないため、買発注をスキップします。ステータス：" + status);
@@ -243,15 +247,22 @@ public class ProfitTrailDealingLogic {
 			ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
 			if (response != null) {
 				resetPositionFields(ask, qty, BuySellEnum.BUY);
+			} else {
+				LOGGER.info("買発注失敗!");
+				NOTIFIER.sendMessage("買発注失敗!");
 			}
 		}
 	}
 
 	private void sell() {
 		LOGGER.debug("sell!");
-		assert (this.side == null || this.side == BuySellEnum.BUY);
+		if (this.side == BuySellEnum.SELL) {
+			throw new IllegalStateException("sideがSELLの時に売注文を出そうとしています。");
+		}
 		double shortPositionSize = getPositionTotalSize(BuySellEnum.SELL);
-		assert (shortPositionSize == 0);
+		if (shortPositionSize != 0) {
+			throw new IllegalStateException("ショートポジションがある状態で売注文を出そうとしています。数量：" + shortPositionSize);
+		}
 		if (!WRAPPER.isHealthy()) {
 			String status = WRAPPER.getHealth().getStatus();
 			LOGGER.info("取引所の状態が通常ではないため、売発注をスキップします。ステータス：" + status);
@@ -282,6 +293,9 @@ public class ProfitTrailDealingLogic {
 			ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
 			if (response != null) {
 				resetPositionFields(bid, qty, BuySellEnum.SELL);
+			} else {
+				LOGGER.info("売発注失敗!");
+				NOTIFIER.sendMessage("売発注失敗!");
 			}
 		}
 	}
@@ -318,10 +332,12 @@ public class ProfitTrailDealingLogic {
 			return null;
 		}
 		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
-		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
-				+ response.getChildOrderAcceptanceId());
-		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
-				+ response.getChildOrderAcceptanceId());
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
+				? response.getChildOrderAcceptanceId()
+				: "null");
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
+				? response.getChildOrderAcceptanceId()
+				: "null");
 		return response;
 	}
 
@@ -346,10 +362,12 @@ public class ProfitTrailDealingLogic {
 			throw new IllegalStateException("取引所の状態が異常な状態が続いています。ステータス:" + WRAPPER.getHealth().getStatus());
 		}
 		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
-		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
-				+ response.getChildOrderAcceptanceId());
-		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
-				+ response.getChildOrderAcceptanceId());
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
+				? response.getChildOrderAcceptanceId()
+				: "null");
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
+				? response.getChildOrderAcceptanceId()
+				: "null");
 		return response;
 	}
 

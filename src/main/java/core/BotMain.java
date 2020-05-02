@@ -20,18 +20,21 @@ public class BotMain {
 
 	public static void main(String[] args) {
 		LOGGER.info("bot起動します…");
-		// スレッドのログ出力設定
-		Thread.UncaughtExceptionHandler dueh = Thread.getDefaultUncaughtExceptionHandler();
-		if (dueh == null) {
-			Thread.setDefaultUncaughtExceptionHandler((Thread t, Throwable e) -> {
-				LOGGER.error("例外発生！", e);
-			});
-		}
 		// 設定値読み込み
 		settings = loadSettings();
 		wrapper = BitFlyerAPIWrapper.getInstance(settings);
 		System.out.println(wrapper.getCollateral().getCollateral());
 		notifier = SlackNotifier.getInstance(settings);
+
+		// スレッドのログ出力設定
+		Thread.UncaughtExceptionHandler dueh = Thread.getDefaultUncaughtExceptionHandler();
+		if (dueh == null) {
+			Thread.setDefaultUncaughtExceptionHandler((Thread t, Throwable e) -> {
+				LOGGER.error("例外発生！", e);
+				notifier.sendMessage("例外発生！ " + e);
+			});
+		}
+
 		@SuppressWarnings("unchecked")
 		Map<String, Double> paramMap = (Map<String, Double>) settings.get("common");
 		// パラメータ出力
