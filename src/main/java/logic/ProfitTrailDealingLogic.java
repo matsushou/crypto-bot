@@ -215,10 +215,11 @@ public class ProfitTrailDealingLogic {
 		}
 		double longPositionSize = getPositionTotalSize(BuySellEnum.BUY);
 		if (longPositionSize != 0) {
-			throw new IllegalStateException("ロングポジションがある状態で買注文を出そうとしています。数量：" + longPositionSize);
+			throw new IllegalStateException(
+					"ロングポジションがある状態で買注文を出そうとしています。数量：" + String.format("%.3f", longPositionSize));
 		}
-		if (!WRAPPER.isHealthy()) {
-			String status = WRAPPER.getHealth().getStatus();
+		if (!isHealthy()) {
+			String status = getHealthStatus();
 			LOGGER.info("取引所の状態が通常ではないため、買発注をスキップします。ステータス：" + status);
 			NOTIFIER.sendMessage("取引所の状態が通常ではないため、買発注をスキップします。ステータス：" + status);
 		}
@@ -233,9 +234,9 @@ public class ProfitTrailDealingLogic {
 
 		// 誤差排除するため1000倍にする
 		int qtyX1000 = collateral * 1000 / ask;
-		if (qtyX1000 < 1) {
-			// 0.001以下の場合は発注しない
-			LOGGER.info("発注数量が0.001以下です。");
+		if (qtyX1000 < 10) {
+			// 0.01以下の場合は発注しない
+			LOGGER.info("発注数量が0.01以下です。");
 		} else {
 			double qty = qtyX1000 / 1000.000;
 			// ドテン分を加算
@@ -261,10 +262,11 @@ public class ProfitTrailDealingLogic {
 		}
 		double shortPositionSize = getPositionTotalSize(BuySellEnum.SELL);
 		if (shortPositionSize != 0) {
-			throw new IllegalStateException("ショートポジションがある状態で売注文を出そうとしています。数量：" + shortPositionSize);
+			throw new IllegalStateException(
+					"ショートポジションがある状態で売注文を出そうとしています。数量：" + String.format("%.3f", shortPositionSize));
 		}
-		if (!WRAPPER.isHealthy()) {
-			String status = WRAPPER.getHealth().getStatus();
+		if (!isHealthy()) {
+			String status = getHealthStatus();
 			LOGGER.info("取引所の状態が通常ではないため、売発注をスキップします。ステータス：" + status);
 			NOTIFIER.sendMessage("取引所の状態が通常ではないため、売発注をスキップします。ステータス：" + status);
 		}
@@ -279,9 +281,9 @@ public class ProfitTrailDealingLogic {
 
 		// 誤差排除するため1000倍にする
 		int qtyX1000 = collateral * 1000 / bid;
-		if (qtyX1000 < 1) {
-			// 0.001以下の場合は発注しない
-			LOGGER.info("発注数量が0.001以下です。");
+		if (qtyX1000 < 10) {
+			// 0.01以下の場合は発注しない
+			LOGGER.info("発注数量が0.01以下です。");
 		} else {
 			double qty = qtyX1000 / 1000.000;
 			// ドテン分を加算
@@ -325,24 +327,22 @@ public class ProfitTrailDealingLogic {
 	}
 
 	private ChildOrderResponse order(BuySellEnum side, int price, double size) {
-		if (!WRAPPER.isHealthy()) {
-			String status = WRAPPER.getHealth().getStatus();
+		if (!isHealthy()) {
+			String status = getHealthStatus();
 			LOGGER.info("取引所の状態が通常ではないため、発注をスキップします。side:" + side + "ステータス：" + status);
 			NOTIFIER.sendMessage("取引所の状態が通常ではないため、発注をスキップします。side:" + side + "ステータス：" + status);
 			return null;
 		}
 		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
-		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
-				? response.getChildOrderAcceptanceId()
-				: "null");
-		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
-				? response.getChildOrderAcceptanceId()
-				: "null");
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
 		return response;
 	}
 
 	private ChildOrderResponse orderWithRetry(BuySellEnum side, int price, double size) {
-		boolean healthy = WRAPPER.isHealthy();
+		boolean healthy = isHealthy();
 		if (!healthy) {
 			for (int i = 0; i < 20; i++) {
 				// 1分待つ
@@ -351,7 +351,7 @@ public class ProfitTrailDealingLogic {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				healthy = WRAPPER.isHealthy();
+				healthy = isHealthy();
 				if (healthy) {
 					break;
 				}
@@ -359,15 +359,13 @@ public class ProfitTrailDealingLogic {
 		}
 		if (!healthy) {
 			// リトライしても正常にならない場合は例外送出
-			throw new IllegalStateException("取引所の状態が異常な状態が続いています。ステータス:" + WRAPPER.getHealth().getStatus());
+			throw new IllegalStateException("取引所の状態が異常な状態が続いています。ステータス:" + getHealthStatus());
 		}
 		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
-		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
-				? response.getChildOrderAcceptanceId()
-				: "null");
-		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:" + response != null
-				? response.getChildOrderAcceptanceId()
-				: "null");
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
 		return response;
 	}
 
@@ -421,6 +419,19 @@ public class ProfitTrailDealingLogic {
 	private int getCollateral() {
 		this.collateral = WRAPPER.getCollateral().getCollateral();
 		return this.collateral;
+	}
+
+	private String getHealthStatus() {
+		return WRAPPER.getHealth().getStatus();
+	}
+
+	private boolean isHealthy() {
+		return WRAPPER.isHealthy() && !isMaintenanceTime();
+	}
+
+	private boolean isMaintenanceTime() {
+		LocalDateTime now = LocalDateTime.now();
+		return WRAPPER.isMaintenanceTime(now);
 	}
 
 }

@@ -9,6 +9,8 @@ import java.net.http.HttpResponse.BodyHandler;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Map;
 
 import javax.crypto.Mac;
@@ -63,6 +65,10 @@ public class BitFlyerAPIWrapper {
 	private final String API_SECRET;
 
 	private final HttpClient CLIENT = HttpClient.newBuilder().build();
+
+	private final LocalTime MAINTENANCE_BEGIN_TIME = LocalTime.of(3, 57, 29);
+
+	private final LocalTime MAINTENANCE_END_TIME = LocalTime.of(4, 12, 31);
 
 	private static BitFlyerAPIWrapper INSTANCE;
 
@@ -318,6 +324,11 @@ public class BitFlyerAPIWrapper {
 			e.printStackTrace();
 		}
 		return null;
+	}
+
+	public boolean isMaintenanceTime(LocalDateTime now) {
+		LocalTime nowTime = now.toLocalTime();
+		return nowTime.isAfter(MAINTENANCE_BEGIN_TIME) && nowTime.isBefore(MAINTENANCE_END_TIME);
 	}
 
 }
