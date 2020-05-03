@@ -234,24 +234,20 @@ public class ProfitTrailDealingLogic {
 
 		// 誤差排除するため1000倍にする
 		int qtyX1000 = collateral * 1000 / ask;
-		if (qtyX1000 < 10) {
-			// 0.01以下の場合は発注しない
-			LOGGER.info("発注数量が0.01以下です。");
+
+		double qty = qtyX1000 / 1000.000;
+		// ドテン分を加算
+		double qtyWithDoten = qty + positionSize;
+		String qtyStr = String.format("%.3f", qtyWithDoten);
+		// 広めに価格を決定(Midに1%乗せる)
+		int orderPrice = (int) (mid + mid * 0.01);
+		// 買発注
+		ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
+		if (response != null) {
+			resetPositionFields(ask, qty, BuySellEnum.BUY);
 		} else {
-			double qty = qtyX1000 / 1000.000;
-			// ドテン分を加算
-			double qtyWithDoten = qty + positionSize;
-			String qtyStr = String.format("%.3f", qtyWithDoten);
-			// 広めに価格を決定(Midに1%乗せる)
-			int orderPrice = (int) (mid + mid * 0.01);
-			// 買発注
-			ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
-			if (response != null) {
-				resetPositionFields(ask, qty, BuySellEnum.BUY);
-			} else {
-				LOGGER.info("買発注失敗!");
-				NOTIFIER.sendMessage("買発注失敗!");
-			}
+			LOGGER.info("買発注失敗!");
+			NOTIFIER.sendMessage("買発注失敗!");
 		}
 	}
 
@@ -281,24 +277,19 @@ public class ProfitTrailDealingLogic {
 
 		// 誤差排除するため1000倍にする
 		int qtyX1000 = collateral * 1000 / bid;
-		if (qtyX1000 < 10) {
-			// 0.01以下の場合は発注しない
-			LOGGER.info("発注数量が0.01以下です。");
+		double qty = qtyX1000 / 1000.000;
+		// ドテン分を加算
+		double qtyWithDoten = qty + positionSize;
+		String qtyStr = String.format("%.3f", qtyWithDoten);
+		// 広めに価格を決定(Midから1%引く)
+		int orderPrice = (int) (mid - mid * 0.01);
+		// 売発注
+		ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
+		if (response != null) {
+			resetPositionFields(bid, qty, BuySellEnum.SELL);
 		} else {
-			double qty = qtyX1000 / 1000.000;
-			// ドテン分を加算
-			double qtyWithDoten = qty + positionSize;
-			String qtyStr = String.format("%.3f", qtyWithDoten);
-			// 広めに価格を決定(Midから1%引く)
-			int orderPrice = (int) (mid - mid * 0.01);
-			// 売発注
-			ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
-			if (response != null) {
-				resetPositionFields(bid, qty, BuySellEnum.SELL);
-			} else {
-				LOGGER.info("売発注失敗!");
-				NOTIFIER.sendMessage("売発注失敗!");
-			}
+			LOGGER.info("売発注失敗!");
+			NOTIFIER.sendMessage("売発注失敗!");
 		}
 	}
 
