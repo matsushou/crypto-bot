@@ -7,7 +7,7 @@ public class CollateralResponse {
 	private int collateral;
 
 	@JsonProperty("open_position_pnl")
-	private String openPositionPnl;
+	private int openPositionPnl;
 
 	@JsonProperty("require_collateral")
 	private String requireCollateral;
@@ -29,11 +29,11 @@ public class CollateralResponse {
 	/**
 	 * @return 建玉の評価損益(円)
 	 */
-	public String getOpenPositionPnl() {
+	public int getOpenPositionPnl() {
 		return openPositionPnl;
 	}
 
-	public void setOpenPositionPnl(String openPositionPnl) {
+	public void setOpenPositionPnl(int openPositionPnl) {
 		this.openPositionPnl = openPositionPnl;
 	}
 

@@ -1,5 +1,6 @@
 package logic;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -11,6 +12,7 @@ import exchange.BitFlyerAPIWrapper;
 import model.BoardResponse;
 import model.BuySellEnum;
 import model.ChildOrderResponse;
+import model.CollateralResponse;
 import model.PositionResponse;
 import notification.SlackNotifier;
 
@@ -29,6 +31,7 @@ public class ProfitTrailDealingLogic {
 	private volatile BuySellEnum side;
 	private volatile double size;
 	private volatile int collateral = -1;
+	private volatile int openPl = 0;
 	private volatile int mid = -1;
 
 	private static Logger LOGGER = LogManager.getLogger(ProfitTrailDealingLogic.class);
@@ -69,8 +72,8 @@ public class ProfitTrailDealingLogic {
 			e.printStackTrace();
 		}
 		// 証拠金評価額取得
-		int collateral = getCollateral();
-		LOGGER.info("証拠金評価額:" + collateral);
+		resetCollateral();
+		LOGGER.info("証拠金評価額:" + this.collateral);
 		// 最初はとりあえず買う(メンテナンス中の起動は想定しない)
 		buy();
 	}
@@ -126,6 +129,7 @@ public class ProfitTrailDealingLogic {
 	private void startPeriodicalNotifyThread(int intervalMin) {
 		Thread t = new Thread(() -> {
 			while (true) {
+				resetCollateral();
 				outputCurrentStatusSlack();
 				try {
 					Thread.sleep(intervalMin * 60 * 1000);
@@ -147,6 +151,7 @@ public class ProfitTrailDealingLogic {
 
 	private void judge() {
 		LOGGER.debug("judge!");
+		resetCollateral();
 		outputCurrentStatus();
 		int mid = getMidPrice();
 		if (side == BuySellEnum.BUY) {
@@ -220,8 +225,9 @@ public class ProfitTrailDealingLogic {
 		}
 		if (!isHealthy()) {
 			String status = getHealthStatus();
-			LOGGER.info("取引所の状態が通常ではないため、買発注をスキップします。ステータス：" + status);
-			NOTIFIER.sendMessage("取引所の状態が通常ではないため、買発注をスキップします。ステータス：" + status);
+			LOGGER.info("取引所の状態が通常ではない、、またはメンテナンス時間のため、買発注をスキップします。ステータス：" + status);
+			NOTIFIER.sendMessage("取引所の状態が通常ではない、またはメンテナンス時間のため、買発注をスキップします。ステータス：" + status);
+			return;
 		}
 		// 数量計算
 		// ドテン分のショートポジションを取得
@@ -230,10 +236,10 @@ public class ProfitTrailDealingLogic {
 		this.mid = getMidPrice();
 		// Midにスプレッド片側分を加算
 		int ask = (int) (mid + mid * SPREAD / 200);
-		int collateral = getCollateral();
+		resetCollateral();
 
 		// 誤差排除するため1000倍にする
-		int qtyX1000 = collateral * 1000 / ask;
+		int qtyX1000 = this.collateral * 1000 / ask;
 
 		double qty = qtyX1000 / 1000.000;
 		// ドテン分を加算
@@ -263,8 +269,9 @@ public class ProfitTrailDealingLogic {
 		}
 		if (!isHealthy()) {
 			String status = getHealthStatus();
-			LOGGER.info("取引所の状態が通常ではないため、売発注をスキップします。ステータス：" + status);
-			NOTIFIER.sendMessage("取引所の状態が通常ではないため、売発注をスキップします。ステータス：" + status);
+			LOGGER.info("取引所の状態が通常ではない、またはメンテナンス時間のため、売発注をスキップします。ステータス：" + status);
+			NOTIFIER.sendMessage("取引所の状態が通常ではない、またはメンテナンス時間のため、売発注をスキップします。ステータス：" + status);
+			return;
 		}
 		// 数量計算
 		// ドテン分のショートポジションを取得
@@ -273,10 +280,10 @@ public class ProfitTrailDealingLogic {
 		this.mid = getMidPrice();
 		// Midにスプレッド片側分を減算
 		int bid = (int) (mid - mid * SPREAD / 200);
-		int collateral = getCollateral();
+		resetCollateral();
 
 		// 誤差排除するため1000倍にする
-		int qtyX1000 = collateral * 1000 / bid;
+		int qtyX1000 = this.collateral * 1000 / bid;
 		double qty = qtyX1000 / 1000.000;
 		// ドテン分を加算
 		double qtyWithDoten = qty + positionSize;
@@ -320,8 +327,8 @@ public class ProfitTrailDealingLogic {
 	private ChildOrderResponse order(BuySellEnum side, int price, double size) {
 		if (!isHealthy()) {
 			String status = getHealthStatus();
-			LOGGER.info("取引所の状態が通常ではないため、発注をスキップします。side:" + side + "ステータス：" + status);
-			NOTIFIER.sendMessage("取引所の状態が通常ではないため、発注をスキップします。side:" + side + "ステータス：" + status);
+			LOGGER.info("取引所の状態が通常ではない、、またはメンテナンス時間のため、発注をスキップします。side:" + side + "ステータス：" + status);
+			NOTIFIER.sendMessage("取引所の状態が通常ではない、、またはメンテナンス時間のため、発注をスキップします。side:" + side + "ステータス：" + status);
 			return null;
 		}
 		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
@@ -374,42 +381,43 @@ public class ProfitTrailDealingLogic {
 		this.entry = entry;
 		this.side = side;
 		this.size = size;
-		this.collateral = getCollateral();
+		resetCollateral();
 		outputCurrentStatus();
 		outputCurrentStatusSlack();
 	}
 
 	private void outputCurrentStatus() {
-		LOGGER.info(
-				"[current status] collateral:" + this.collateral + " side:" + (this.side == BuySellEnum.BUY ? "買" : "売")
-						+ " size:" + this.size + " entry:" + this.entry + " trailLine:" + this.trailLine
-						+ " lossCutLine:" + this.lossCutLine + " trailing:" + this.trailing + " mid:" + this.mid);
+		LOGGER.info("[current status] collateral:" + this.collateral + " OpenPL:" + this.openPl + " side:"
+				+ (this.side == BuySellEnum.BUY ? "買" : "売") + " size:" + this.size + " entry:" + this.entry
+				+ " trailLine:" + this.trailLine + " lossCutLine:" + this.lossCutLine + " trailing:" + this.trailing
+				+ " mid:" + this.mid);
 	}
 
 	private void outputCurrentStatusSlack() {
-		NOTIFIER.sendMessage(
-				"[current status] collateral:" + this.collateral + " side:" + (this.side == BuySellEnum.BUY ? "買" : "売")
-						+ " size:" + this.size + " entry:" + this.entry + " trailLine:" + this.trailLine
-						+ " lossCutLine:" + this.lossCutLine + " trailing:" + this.trailing + " mid:" + this.mid);
+		NOTIFIER.sendMessage("[current status] collateral:" + this.collateral + " OpenPL:" + this.openPl + " side:"
+				+ (this.side == BuySellEnum.BUY ? "買" : "売") + " size:" + this.size + " entry:" + this.entry
+				+ " trailLine:" + this.trailLine + " lossCutLine:" + this.lossCutLine + " trailing:" + this.trailing
+				+ " mid:" + this.mid);
 	}
 
 	private double getPositionTotalSize(BuySellEnum side) {
 		PositionResponse[] responses = WRAPPER.getPositions();
-		double size = 0.000;
+		BigDecimal size = BigDecimal.ZERO;
 		String sideStr = side == BuySellEnum.BUY ? "BUY" : "SELL";
 		for (PositionResponse response : responses) {
 			if (response.getProductCode().equals("FX_BTC_JPY")) {
 				if (response.getSide().equals(sideStr)) {
-					size += Double.valueOf(response.getSize());
+					size = size.add(new BigDecimal(response.getSize()));
 				}
 			}
 		}
-		return size;
+		return size.doubleValue();
 	}
 
-	private int getCollateral() {
-		this.collateral = WRAPPER.getCollateral().getCollateral();
-		return this.collateral;
+	private void resetCollateral() {
+		CollateralResponse response = WRAPPER.getCollateral();
+		this.collateral = response.getCollateral();
+		this.openPl = response.getOpenPositionPnl();
 	}
 
 	private String getHealthStatus() {
