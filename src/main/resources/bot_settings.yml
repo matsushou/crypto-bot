@@ -1,10 +1,11 @@
 common:
-  trailPercentage: 0.0
+  leverage: 1.0
   lossCutPercentage: 0.0
 exchange:
   apiKey: ""
   secret: ""
 logic:
+  trailPercentage: 0.0
   spread: 0.0
   notifyInterval: 60.0
 slack:

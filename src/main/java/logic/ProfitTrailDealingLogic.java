@@ -20,8 +20,9 @@ public class ProfitTrailDealingLogic {
 
 	private final BitFlyerAPIWrapper WRAPPER;
 	private final SlackNotifier NOTIFIER;
-	private final double TRAIL_PERCENTAGE;
+	private final double LEVERAGE;
 	private final double LOSS_CUT_PERCENTAGE;
+	private final double TRAIL_PERCENTAGE;
 	private final double SPREAD;
 	private final int INTERVAL;
 	private volatile int trailLine = -1;
@@ -40,7 +41,7 @@ public class ProfitTrailDealingLogic {
 			Map<String, Object> settings) {
 		this.WRAPPER = wrapper;
 		this.NOTIFIER = notifier;
-		this.TRAIL_PERCENTAGE = paramMap.get("trailPercentage");
+		this.LEVERAGE = paramMap.get("leverage");
 		this.LOSS_CUT_PERCENTAGE = paramMap.get("lossCutPercentage");
 		@SuppressWarnings("unchecked")
 		Map<String, Double> logicParam = (Map<String, Double>) settings.get("logic");
@@ -49,6 +50,7 @@ public class ProfitTrailDealingLogic {
 		sb.append("LogicParams");
 		logicParam.forEach((k, v) -> sb.append(" " + k + ":" + v));
 		LOGGER.info(sb.toString());
+		this.TRAIL_PERCENTAGE = logicParam.get("trailPercentage");
 		this.SPREAD = logicParam.get("spread");
 		this.INTERVAL = logicParam.get("notifyInterval").intValue();
 	}
@@ -153,6 +155,10 @@ public class ProfitTrailDealingLogic {
 		LOGGER.debug("judge!");
 		resetCollateral();
 		outputCurrentStatus();
+		if (isMaintenanceTime()) {
+			LOGGER.debug("メンテナンス時間中なので執行判断をスキップします。");
+			return;
+		}
 		int mid = getMidPrice();
 		if (side == BuySellEnum.BUY) {
 			// ロングポジション
@@ -238,17 +244,19 @@ public class ProfitTrailDealingLogic {
 		int ask = (int) (mid + mid * SPREAD / 200);
 		resetCollateral();
 
-		// 誤差排除するため1000倍にする
+		// 今の証拠金から発注数量を計算
+		// (誤差排除するため1000倍にする)
 		int qtyX1000 = this.collateral * 1000 / ask;
 
-		double qty = qtyX1000 / 1000.000;
+		// レバレッジ倍率を加味
+		double qty = qtyX1000 * this.LEVERAGE / 1000.000;
 		// ドテン分を加算
 		double qtyWithDoten = qty + positionSize;
-		String qtyStr = String.format("%.3f", qtyWithDoten);
+		String qtyWithDotenStr = String.format("%.3f", qtyWithDoten);
 		// 広めに価格を決定(Midに1%乗せる)
 		int orderPrice = (int) (mid + mid * 0.01);
 		// 買発注
-		ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
+		ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyWithDotenStr));
 		if (response != null) {
 			resetPositionFields(ask, qty, BuySellEnum.BUY);
 		} else {
@@ -282,16 +290,18 @@ public class ProfitTrailDealingLogic {
 		int bid = (int) (mid - mid * SPREAD / 200);
 		resetCollateral();
 
-		// 誤差排除するため1000倍にする
+		// 今の証拠金から発注数量を計算
+		// (誤差排除するため1000倍にする)
 		int qtyX1000 = this.collateral * 1000 / bid;
-		double qty = qtyX1000 / 1000.000;
+		// レバレッジ倍率を加味
+		double qty = qtyX1000 * this.LEVERAGE / 1000.000;
 		// ドテン分を加算
 		double qtyWithDoten = qty + positionSize;
-		String qtyStr = String.format("%.3f", qtyWithDoten);
+		String qtyWithDotenStr = String.format("%.3f", qtyWithDoten);
 		// 広めに価格を決定(Midから1%引く)
 		int orderPrice = (int) (mid - mid * 0.01);
 		// 売発注
-		ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
+		ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyWithDotenStr));
 		if (response != null) {
 			resetPositionFields(bid, qty, BuySellEnum.SELL);
 		} else {
