@@ -32,11 +32,12 @@ public class BotMain {
 			Thread.setDefaultUncaughtExceptionHandler((Thread t, Throwable e) -> {
 				LOGGER.error("例外発生！", e);
 				notifier.sendMessage("例外発生！ " + e);
+				System.exit(1);
 			});
 		}
 
 		@SuppressWarnings("unchecked")
-		Map<String, Double> paramMap = (Map<String, Double>) settings.get("common");
+		Map<String, Object> paramMap = (Map<String, Object>) settings.get("common");
 		// パラメータ出力
 		StringBuilder sb = new StringBuilder();
 		sb.append("CommonParams");

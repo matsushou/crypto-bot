@@ -1,6 +1,8 @@
 common:
   leverage: 1.0
   lossCutPercentage: 0.0
+  positionClear: false #動作確認時はfalse
+  firstTrade: BUY
 exchange:
   apiKey: ""
   secret: ""

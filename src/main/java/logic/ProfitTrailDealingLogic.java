@@ -22,6 +22,8 @@ public class ProfitTrailDealingLogic {
 	private final SlackNotifier NOTIFIER;
 	private final double LEVERAGE;
 	private final double LOSS_CUT_PERCENTAGE;
+	private final boolean POSITION_CLEAR;
+	private final BuySellEnum FIRST_TRADE;
 	private final double TRAIL_PERCENTAGE;
 	private final double SPREAD;
 	private final int INTERVAL;
@@ -36,13 +38,16 @@ public class ProfitTrailDealingLogic {
 	private volatile int mid = -1;
 
 	private static Logger LOGGER = LogManager.getLogger(ProfitTrailDealingLogic.class);
+	private static Logger OHLCV_LOGGER = LogManager.getLogger("ohlcv_logger");
 
-	public ProfitTrailDealingLogic(BitFlyerAPIWrapper wrapper, SlackNotifier notifier, Map<String, Double> paramMap,
+	public ProfitTrailDealingLogic(BitFlyerAPIWrapper wrapper, SlackNotifier notifier, Map<String, Object> paramMap,
 			Map<String, Object> settings) {
 		this.WRAPPER = wrapper;
 		this.NOTIFIER = notifier;
-		this.LEVERAGE = paramMap.get("leverage");
-		this.LOSS_CUT_PERCENTAGE = paramMap.get("lossCutPercentage");
+		this.LEVERAGE = (Double) (paramMap.get("leverage"));
+		this.LOSS_CUT_PERCENTAGE = (Double) (paramMap.get("lossCutPercentage"));
+		this.POSITION_CLEAR = (Boolean) (paramMap.get("positionClear"));
+		this.FIRST_TRADE = BuySellEnum.valueOf((String) (paramMap.get("firstTrade")));
 		@SuppressWarnings("unchecked")
 		Map<String, Double> logicParam = (Map<String, Double>) settings.get("logic");
 		// パラメータ出力
@@ -65,19 +70,25 @@ public class ProfitTrailDealingLogic {
 	}
 
 	private void init() {
-		// ポジションクリア
-		positionClear();
-		// 処理反映まで少し待つ
-		try {
-			Thread.sleep(3000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
 		// 証拠金評価額取得
 		resetCollateral();
 		LOGGER.info("証拠金評価額:" + this.collateral);
-		// 最初はとりあえず買う(メンテナンス中の起動は想定しない)
-		buy();
+		// ポジションクリア
+		if (POSITION_CLEAR) {
+			positionClear();
+			// 処理反映まで少し待つ
+			try {
+				Thread.sleep(3000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			// 最初の取引
+			if (FIRST_TRADE == BuySellEnum.BUY) {
+				buy();
+			} else {
+				sell();
+			}
+		}
 	}
 
 	private void startOhlcvThread() {
@@ -106,7 +117,9 @@ public class ProfitTrailDealingLogic {
 							ohlcv = OHLCVUtil.setClose(ohlcv, mid);
 							// 執行判断
 							judge();
-							LOGGER.debug(OHLCVUtil.toString(ohlcv));
+							OHLCV_LOGGER.debug("{},{},{},{},{},0", System.currentTimeMillis() / 1000,
+									OHLCVUtil.getOpen(ohlcv), OHLCVUtil.getHigh(ohlcv), OHLCVUtil.getLow(ohlcv),
+									OHLCVUtil.getClose(ohlcv));
 						}
 						// OHLCVの初期化とopen,high,lowの設定
 						ohlcv = new int[4];

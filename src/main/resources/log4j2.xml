@@ -14,8 +14,10 @@
    		%mはログメッセージ
    		%nは改行
       -->
+        <Property name="format2">%m%n</Property>
         <Property name="logfile">C:/temp/crypto-bot.log</Property>
         <Property name="logfile-archive">C:/temp/crypto-bot_%d{yyyyMMdd}-%i.log</Property>
+        <Property name="ohlcv_logfile">C:/temp/ohlcv.log</Property>
     </Properties>
     
 	<Appenders>
@@ -39,6 +41,13 @@
 			//　ローテーションのファイルは、10件持つ
 			<DefaultRolloverStrategy max="10"/>
 		</RollingFile>
+
+		<!-- OHLCVファイルに出力する設定 -->
+		<File name="logfile002" fileName="${ohlcv_logfile}">
+			<PatternLayout>
+				<pattern>${format2}</pattern>
+			</PatternLayout>
+		</File>
 	</Appenders>
 	
 	<Loggers>
@@ -47,5 +56,9 @@
 			<AppenderRef ref="Console" />
 			<AppenderRef ref="logfile001" />
 		</Root>
+		// OHLCVのログは別ファイルに出力する
+        <Logger name="ohlcv_logger" level="debug" additivity="false">
+            <AppenderRef ref="logfile002"/>
+        </Logger>
 	</Loggers>
 </Configuration>

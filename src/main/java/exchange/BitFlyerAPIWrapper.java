@@ -56,7 +56,7 @@ public class BitFlyerAPIWrapper {
 
 	private final String APPLICATION_JSON = "application/json";
 
-	private final int RETRY_COUNT = 5;
+	private final int RETRY_COUNT = 50;
 
 	private final int RETRY_INTERVAL_MSEC = 100;
 
