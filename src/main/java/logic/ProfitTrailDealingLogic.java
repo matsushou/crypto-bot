@@ -92,6 +92,8 @@ public class ProfitTrailDealingLogic {
 		}
 		// 前回のトレールラインとロスカットラインの設定があれば復元
 		loadLastLines();
+		outputCurrentStatus();
+		outputCurrentStatusSlack();
 	}
 
 	private void loadLastLines() {
@@ -262,9 +264,7 @@ public class ProfitTrailDealingLogic {
 			NOTIFIER.sendMessage("取引所の状態が通常ではない、またはメンテナンス時間のため、買発注をスキップします。ステータス：" + status);
 			return;
 		}
-		// 数量計算
-		// ドテン分のショートポジションを取得
-		double positionSize = getPositionTotalSize(BuySellEnum.SELL);
+		// 価格計算
 		int mid = getMidPrice();
 		this.mid = getMidPrice();
 		// Midにスプレッド片側分を加算
@@ -274,16 +274,25 @@ public class ProfitTrailDealingLogic {
 		// 今の証拠金から発注数量を計算
 		// (誤差排除するため1000倍にする)
 		int qtyX1000 = this.collateral * 1000 / ask;
-
 		// レバレッジ倍率を加味
 		double qty = qtyX1000 * this.LEVERAGE / 1000.000;
-		// ドテン分を加算
-		double qtyWithDoten = qty + positionSize;
-		String qtyWithDotenStr = String.format("%.3f", qtyWithDoten);
 		// 広めに価格を決定(Midに1%乗せる)
 		int orderPrice = (int) (mid + mid * 0.01);
-		// 買発注
-		ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyWithDotenStr));
+
+		// ドテン分のショートポジションを取得
+		double positionSize = getPositionTotalSize(BuySellEnum.SELL);
+		if (positionSize >= 0.01) {
+			// 買発注(ドテン分)
+			String dotenStr = String.format("%.3f", positionSize);
+			ChildOrderResponse responseDoten = order(BuySellEnum.BUY, orderPrice, Double.valueOf(dotenStr));
+			if (responseDoten == null) {
+				LOGGER.info("ポジション解消の買発注失敗!");
+				NOTIFIER.sendMessage("ポジション解消の買発注失敗!");
+			}
+		}
+		// 買発注(新規分)
+		String qtyStr = String.format("%.3f", qty);
+		ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
 		if (response != null) {
 			resetPositionFields(ask, qty, BuySellEnum.BUY);
 		} else {
@@ -308,9 +317,7 @@ public class ProfitTrailDealingLogic {
 			NOTIFIER.sendMessage("取引所の状態が通常ではない、またはメンテナンス時間のため、売発注をスキップします。ステータス：" + status);
 			return;
 		}
-		// 数量計算
-		// ドテン分のショートポジションを取得
-		double positionSize = getPositionTotalSize(BuySellEnum.BUY);
+		// 価格計算
 		int mid = getMidPrice();
 		this.mid = getMidPrice();
 		// Midにスプレッド片側分を減算
@@ -322,13 +329,23 @@ public class ProfitTrailDealingLogic {
 		int qtyX1000 = this.collateral * 1000 / bid;
 		// レバレッジ倍率を加味
 		double qty = qtyX1000 * this.LEVERAGE / 1000.000;
-		// ドテン分を加算
-		double qtyWithDoten = qty + positionSize;
-		String qtyWithDotenStr = String.format("%.3f", qtyWithDoten);
 		// 広めに価格を決定(Midから1%引く)
 		int orderPrice = (int) (mid - mid * 0.01);
-		// 売発注
-		ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyWithDotenStr));
+
+		// ドテン分のロングポジションを取得
+		double positionSize = getPositionTotalSize(BuySellEnum.BUY);
+		if (positionSize >= 0.01) {
+			// 売発注(ドテン分)
+			String dotenStr = String.format("%.3f", positionSize);
+			ChildOrderResponse responseDoten = order(BuySellEnum.SELL, orderPrice, Double.valueOf(dotenStr));
+			if (responseDoten == null) {
+				LOGGER.info("ポジション解消の売発注失敗!");
+				NOTIFIER.sendMessage("ポジション解消の売発注失敗!");
+			}
+		}
+		// 売発注(新規分)
+		String qtyStr = String.format("%.3f", qty);
+		ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
 		if (response != null) {
 			resetPositionFields(bid, qty, BuySellEnum.SELL);
 		} else {
