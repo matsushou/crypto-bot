@@ -25,6 +25,7 @@ public class ProfitTrailDealingLogic {
 	private final boolean POSITION_CLEAR;
 	private final BuySellEnum FIRST_TRADE;
 	private final double TRAIL_PERCENTAGE;
+	private final Map<String, Double> LOGIC_PARAM;
 	private final double SPREAD;
 	private final int INTERVAL;
 	private volatile int trailLine = -1;
@@ -40,6 +41,7 @@ public class ProfitTrailDealingLogic {
 	private static Logger LOGGER = LogManager.getLogger(ProfitTrailDealingLogic.class);
 	private static Logger OHLCV_LOGGER = LogManager.getLogger("ohlcv_logger");
 
+	@SuppressWarnings("unchecked")
 	public ProfitTrailDealingLogic(BitFlyerAPIWrapper wrapper, SlackNotifier notifier, Map<String, Object> paramMap,
 			Map<String, Object> settings) {
 		this.WRAPPER = wrapper;
@@ -48,16 +50,15 @@ public class ProfitTrailDealingLogic {
 		this.LOSS_CUT_PERCENTAGE = (Double) (paramMap.get("lossCutPercentage"));
 		this.POSITION_CLEAR = (Boolean) (paramMap.get("positionClear"));
 		this.FIRST_TRADE = BuySellEnum.valueOf((String) (paramMap.get("firstTrade")));
-		@SuppressWarnings("unchecked")
-		Map<String, Double> logicParam = (Map<String, Double>) settings.get("logic");
+		this.LOGIC_PARAM = (Map<String, Double>) settings.get("logic");
 		// パラメータ出力
 		StringBuilder sb = new StringBuilder();
 		sb.append("LogicParams");
-		logicParam.forEach((k, v) -> sb.append(" " + k + ":" + v));
+		this.LOGIC_PARAM.forEach((k, v) -> sb.append(" " + k + ":" + v));
 		LOGGER.info(sb.toString());
-		this.TRAIL_PERCENTAGE = logicParam.get("trailPercentage");
-		this.SPREAD = logicParam.get("spread");
-		this.INTERVAL = logicParam.get("notifyInterval").intValue();
+		this.TRAIL_PERCENTAGE = this.LOGIC_PARAM.get("trailPercentage");
+		this.SPREAD = this.LOGIC_PARAM.get("spread");
+		this.INTERVAL = this.LOGIC_PARAM.get("notifyInterval").intValue();
 	}
 
 	public void execute() {
@@ -88,6 +89,19 @@ public class ProfitTrailDealingLogic {
 			} else {
 				sell();
 			}
+		}
+		// 前回のトレールラインとロスカットラインの設定があれば復元
+		loadLastLines();
+	}
+
+	private void loadLastLines() {
+		Double lastTrailLine = this.LOGIC_PARAM.get("lastTrailLine");
+		if (lastTrailLine != null) {
+			this.trailLine = lastTrailLine.intValue();
+		}
+		Double lastLossCutLine = this.LOGIC_PARAM.get("lastLossCutLine");
+		if (lastLossCutLine != null) {
+			this.lossCutLine = lastLossCutLine.intValue();
 		}
 	}
 
