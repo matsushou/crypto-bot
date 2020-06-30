@@ -114,13 +114,22 @@ public class ProfitTrailDealingLogic {
 			int count = 0;
 			int[] ohlcv = new int[4];
 			// オーバーヘッド減らすため、最初一回リクエストしておく
-			getMidPrice();
+			int lastMid = getMidPrice();
+			if (lastMid == -1) {
+				// 初回で板情報が取れなければ処理停止
+				throw new IllegalStateException("板情報取得に失敗したので分足作成処理の開始に失敗しました。");
+			}
 			while (true) {
 				LocalDateTime now = LocalDateTime.now();
 				int second = now.getSecond();
 				if (second != lastSecond) {
 					// 秒が変わったらMid取得
 					int mid = getMidPrice();
+					if (mid == -1) {
+						// 板情報が取れなければ処理しない
+						LOGGER.debug("板情報取得に失敗したので前回Midを利用します。");
+						mid = lastMid;
+					}
 					LOGGER.debug("Mid取得結果：" + mid + " 時刻:" + now);
 					this.mid = mid;
 					// High,Lowの更新チェック
@@ -144,6 +153,7 @@ public class ProfitTrailDealingLogic {
 						ohlcv = OHLCVUtil.setLow(ohlcv, mid);
 					}
 					lastSecond = second;
+					lastMid = mid;
 					count++;
 				}
 				try {
@@ -175,7 +185,9 @@ public class ProfitTrailDealingLogic {
 	private int getMidPrice() {
 		BoardResponse board = WRAPPER.getBoard();
 		if (board == null) {
-			throw new IllegalStateException("Board Response is null.");
+			LOGGER.info("Board Response is null.");
+			NOTIFIER.sendMessage("板情報の取得に失敗しました。");
+			return -1;
 		}
 		return (int) board.getMidPrice();
 	}
@@ -189,6 +201,11 @@ public class ProfitTrailDealingLogic {
 			return;
 		}
 		int mid = getMidPrice();
+		if (mid == -1) {
+			// 板情報が取れなければ処理しない
+			LOGGER.debug("板情報取得に失敗したので執行判断をスキップします。");
+			return;
+		}
 		if (side == BuySellEnum.BUY) {
 			// ロングポジション
 			// Midにスプレッド片側分を減算
@@ -266,7 +283,12 @@ public class ProfitTrailDealingLogic {
 		}
 		// 価格計算
 		int mid = getMidPrice();
-		this.mid = getMidPrice();
+		if (mid == -1) {
+			// 板情報が取れなければ処理しない
+			LOGGER.debug("板情報取得に失敗したので買発注をスキップします。");
+			return;
+		}
+		this.mid = mid;
 		// Midにスプレッド片側分を加算
 		int ask = (int) (mid + mid * SPREAD / 200);
 		resetCollateral();
@@ -319,7 +341,12 @@ public class ProfitTrailDealingLogic {
 		}
 		// 価格計算
 		int mid = getMidPrice();
-		this.mid = getMidPrice();
+		if (mid == -1) {
+			// 板情報が取れなければ処理しない
+			LOGGER.debug("板情報取得に失敗したので売発注をスキップします。");
+			return;
+		}
+		this.mid = mid;
 		// Midにスプレッド片側分を減算
 		int bid = (int) (mid - mid * SPREAD / 200);
 		resetCollateral();
@@ -360,6 +387,10 @@ public class ProfitTrailDealingLogic {
 			LOGGER.info("ロングポジションをスクエアにします。数量：" + longPositionSize);
 			NOTIFIER.sendMessage("ロングポジションをスクエアにします。数量：" + longPositionSize);
 			int mid = getMidPrice();
+			if (mid == -1) {
+				// 板情報が取れなければ処理停止
+				throw new IllegalStateException("板情報取得に失敗したのでポジションクリアに失敗しました。");
+			}
 			// 広めに価格を決定(Midから1%引く)
 			int orderPrice = (int) (mid - mid * 0.01);
 			// リトライありで売発注
@@ -370,6 +401,10 @@ public class ProfitTrailDealingLogic {
 				LOGGER.info("ショートポジションをスクエアにします。数量：" + shortPositionSize);
 				NOTIFIER.sendMessage("ショートポジションをスクエアにします。数量：" + shortPositionSize);
 				int mid = getMidPrice();
+				if (mid == -1) {
+					// 板情報が取れなければ処理停止
+					throw new IllegalStateException("板情報取得に失敗したのでポジションクリアに失敗しました。");
+				}
 				// 広めに価格を決定(Midに1%乗せる)
 				int orderPrice = (int) (mid + mid * 0.01);
 				// リトライありで買発注
