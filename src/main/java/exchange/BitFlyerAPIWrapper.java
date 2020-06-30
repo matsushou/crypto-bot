@@ -97,29 +97,19 @@ public class BitFlyerAPIWrapper {
 	public BoardResponse getBoard() {
 		BoardResponse boardResponse = null;
 		String responseBody = null;
-		for (int i = 0; i < RETRY_COUNT; i++) {
-			try {
-				HttpRequest request = HttpRequest.newBuilder(URI.create(ENDPOINT + GETBOARD_API)).build();
+		try {
+			HttpRequest request = HttpRequest.newBuilder(URI.create(ENDPOINT + GETBOARD_API)).build();
 
-				BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
-				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
-				int status = response.statusCode();
-				if (status >= 500) {
-					// 500番台ならリトライ
-					LOGGER.info("[getboard]try retry...");
-					Thread.sleep(RETRY_INTERVAL_MSEC);
-					continue;
-				}
-				responseBody = response.body();
+			BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+			HttpResponse<String> response = CLIENT.send(request, bodyHandler);
+			responseBody = response.body();
 
-				ObjectMapper mapper = new ObjectMapper();
-				boardResponse = mapper.readValue(responseBody, BoardResponse.class);
-				break;
-			} catch (JsonProcessingException e) {
-				e.printStackTrace();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			ObjectMapper mapper = new ObjectMapper();
+			boardResponse = mapper.readValue(responseBody, BoardResponse.class);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		return boardResponse;
 	}
