@@ -90,13 +90,13 @@ public class ProfitTrailDealingLogic {
 				sell();
 			}
 		}
-		// 前回のトレールラインとロスカットラインの設定があれば復元
-		loadLastLines();
+		// 前回の途中データがあれば復元
+		loadLastData();
 		outputCurrentStatus();
 		outputCurrentStatusSlack();
 	}
 
-	private void loadLastLines() {
+	private void loadLastData() {
 		Double lastTrailLine = this.LOGIC_PARAM.get("lastTrailLine");
 		if (lastTrailLine != null) {
 			this.trailLine = lastTrailLine.intValue();
@@ -104,6 +104,10 @@ public class ProfitTrailDealingLogic {
 		Double lastLossCutLine = this.LOGIC_PARAM.get("lastLossCutLine");
 		if (lastLossCutLine != null) {
 			this.lossCutLine = lastLossCutLine.intValue();
+		}
+		// 前回データがある場合、FIRST_TRADEをポジション方向とみなす
+		if (lastTrailLine != null || lastLossCutLine != null) {
+			this.side = FIRST_TRADE;
 		}
 	}
 
