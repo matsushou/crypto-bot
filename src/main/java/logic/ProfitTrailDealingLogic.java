@@ -13,6 +13,7 @@ import model.BoardResponse;
 import model.BuySellEnum;
 import model.ChildOrderResponse;
 import model.CollateralResponse;
+import model.OrderTypeEnum;
 import model.PositionResponse;
 import notification.SlackNotifier;
 
@@ -310,7 +311,8 @@ public class ProfitTrailDealingLogic {
 		if (positionSize >= 0.01) {
 			// 買発注(ドテン分)
 			String dotenStr = String.format("%.3f", positionSize);
-			ChildOrderResponse responseDoten = order(BuySellEnum.BUY, orderPrice, Double.valueOf(dotenStr));
+			ChildOrderResponse responseDoten = order(BuySellEnum.BUY, orderPrice, Double.valueOf(dotenStr),
+					OrderTypeEnum.MARKET);
 			if (responseDoten == null) {
 				LOGGER.info("ポジション解消の買発注失敗!");
 				NOTIFIER.sendMessage("ポジション解消の買発注失敗!");
@@ -318,7 +320,7 @@ public class ProfitTrailDealingLogic {
 		}
 		// 買発注(新規分)
 		String qtyStr = String.format("%.3f", qty);
-		ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr));
+		ChildOrderResponse response = order(BuySellEnum.BUY, orderPrice, Double.valueOf(qtyStr), OrderTypeEnum.MARKET);
 		if (response != null) {
 			resetPositionFields(ask, qty, BuySellEnum.BUY);
 		} else {
@@ -368,7 +370,8 @@ public class ProfitTrailDealingLogic {
 		if (positionSize >= 0.01) {
 			// 売発注(ドテン分)
 			String dotenStr = String.format("%.3f", positionSize);
-			ChildOrderResponse responseDoten = order(BuySellEnum.SELL, orderPrice, Double.valueOf(dotenStr));
+			ChildOrderResponse responseDoten = order(BuySellEnum.SELL, orderPrice, Double.valueOf(dotenStr),
+					OrderTypeEnum.MARKET);
 			if (responseDoten == null) {
 				LOGGER.info("ポジション解消の売発注失敗!");
 				NOTIFIER.sendMessage("ポジション解消の売発注失敗!");
@@ -376,7 +379,7 @@ public class ProfitTrailDealingLogic {
 		}
 		// 売発注(新規分)
 		String qtyStr = String.format("%.3f", qty);
-		ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr));
+		ChildOrderResponse response = order(BuySellEnum.SELL, orderPrice, Double.valueOf(qtyStr), OrderTypeEnum.MARKET);
 		if (response != null) {
 			resetPositionFields(bid, qty, BuySellEnum.SELL);
 		} else {
@@ -398,7 +401,7 @@ public class ProfitTrailDealingLogic {
 			// 広めに価格を決定(Midから1%引く)
 			int orderPrice = (int) (mid - mid * 0.01);
 			// リトライありで売発注
-			orderWithRetry(BuySellEnum.SELL, orderPrice, longPositionSize);
+			orderWithRetry(BuySellEnum.SELL, orderPrice, longPositionSize, OrderTypeEnum.MARKET);
 		} else {
 			double shortPositionSize = getPositionTotalSize(BuySellEnum.SELL);
 			if (shortPositionSize != 0) {
@@ -412,27 +415,27 @@ public class ProfitTrailDealingLogic {
 				// 広めに価格を決定(Midに1%乗せる)
 				int orderPrice = (int) (mid + mid * 0.01);
 				// リトライありで買発注
-				orderWithRetry(BuySellEnum.BUY, orderPrice, shortPositionSize);
+				orderWithRetry(BuySellEnum.BUY, orderPrice, shortPositionSize, OrderTypeEnum.MARKET);
 			}
 		}
 	}
 
-	private ChildOrderResponse order(BuySellEnum side, int price, double size) {
+	private ChildOrderResponse order(BuySellEnum side, int price, double size, OrderTypeEnum orderType) {
 		if (!isHealthy()) {
 			String status = getHealthStatus();
 			LOGGER.info("取引所の状態が通常ではない、、またはメンテナンス時間のため、発注をスキップします。side:" + side + "ステータス：" + status);
 			NOTIFIER.sendMessage("取引所の状態が通常ではない、、またはメンテナンス時間のため、発注をスキップします。side:" + side + "ステータス：" + status);
 			return null;
 		}
-		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
-		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size, orderType);
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " orderType:" + orderType + " id:"
 				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
-		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
-				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " orderType:" + orderType
+				+ " id:" + (response != null ? response.getChildOrderAcceptanceId() : "null"));
 		return response;
 	}
 
-	private ChildOrderResponse orderWithRetry(BuySellEnum side, int price, double size) {
+	private ChildOrderResponse orderWithRetry(BuySellEnum side, int price, double size, OrderTypeEnum orderType) {
 		boolean healthy = isHealthy();
 		if (!healthy) {
 			for (int i = 0; i < 20; i++) {
@@ -452,11 +455,11 @@ public class ProfitTrailDealingLogic {
 			// リトライしても正常にならない場合は例外送出
 			throw new IllegalStateException("取引所の状態が異常な状態が続いています。ステータス:" + getHealthStatus());
 		}
-		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size);
-		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " id:"
+		ChildOrderResponse response = WRAPPER.sendChildOrder(side, price, size, orderType);
+		LOGGER.info("[order] side:" + side + " price:" + price + " size:" + size + " orderType:" + orderType + " id:"
 				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
-		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " id:"
-				+ (response != null ? response.getChildOrderAcceptanceId() : "null"));
+		NOTIFIER.sendMessage("[order] side:" + side + " price:" + price + " size:" + size + " orderType:" + orderType
+				+ " id:" + (response != null ? response.getChildOrderAcceptanceId() : "null"));
 		return response;
 	}
 

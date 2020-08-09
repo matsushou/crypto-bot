@@ -28,6 +28,7 @@ import model.BuySellEnum;
 import model.ChildOrderResponse;
 import model.CollateralResponse;
 import model.HealthResponse;
+import model.OrderTypeEnum;
 import model.PositionResponse;
 
 public class BitFlyerAPIWrapper {
@@ -149,16 +150,19 @@ public class BitFlyerAPIWrapper {
 		return balanceResponses;
 	}
 
-	public ChildOrderResponse sendChildOrder(BuySellEnum side, int price, double size) {
+	public ChildOrderResponse sendChildOrder(BuySellEnum side, int price, double size, OrderTypeEnum orderType) {
 		ChildOrderResponse childOrderResponse = null;
-		String body = "{" //
-				+ "\"product_code\": \"FX_BTC_JPY\", " //
-				+ "\"child_order_type\": \"LIMIT\", " //
-				+ "\"side\": \"" + side + "\", " //
-				+ "\"price\": " + price + ", " //
-				+ "\"size\": " + size + ", " //
-				+ "\"time_in_force\": \"IOC\"" //
-				+ "}";
+		StringBuilder sb = new StringBuilder(256);
+		sb.append("{");
+		sb.append("\"product_code\": \"FX_BTC_JPY\", ");
+		sb.append("\"child_order_type\": \"" + orderType.name() + "\", ");
+		sb.append("\"side\": \"" + side + "\", ");
+		if (orderType == OrderTypeEnum.LIMIT) {
+			sb.append("\"price\": " + price + ", ");
+		}
+		sb.append("\"size\": " + size + ", ");
+		sb.append("}");
+		String body = sb.toString();
 		for (int i = 0; i < RETRY_COUNT; i++) {
 			String timestamp = String.valueOf(System.currentTimeMillis());
 			String sign = createSign(timestamp, "POST", SENDCHILDORDER_API, body);
