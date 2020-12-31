@@ -17,10 +17,8 @@ import model.OrderTypeEnum;
 import model.PositionResponse;
 import notification.SlackNotifier;
 
-public class ProfitTrailDealingLogic {
+public class ProfitTrailDealingLogic extends DealingLogicBase {
 
-	private final BitFlyerAPIWrapper WRAPPER;
-	private final SlackNotifier NOTIFIER;
 	private final double LEVERAGE;
 	private final double LOSS_CUT_PERCENTAGE;
 	private final boolean POSITION_CLEAR;
@@ -45,8 +43,7 @@ public class ProfitTrailDealingLogic {
 	@SuppressWarnings("unchecked")
 	public ProfitTrailDealingLogic(BitFlyerAPIWrapper wrapper, SlackNotifier notifier, Map<String, Object> paramMap,
 			Map<String, Object> settings) {
-		this.WRAPPER = wrapper;
-		this.NOTIFIER = notifier;
+		super(wrapper, notifier, paramMap, settings);
 		this.LEVERAGE = (Double) (paramMap.get("leverage"));
 		this.LOSS_CUT_PERCENTAGE = (Double) (paramMap.get("lossCutPercentage"));
 		this.POSITION_CLEAR = (Boolean) (paramMap.get("positionClear"));
@@ -62,7 +59,9 @@ public class ProfitTrailDealingLogic {
 		this.INTERVAL = this.LOGIC_PARAM.get("notifyInterval").intValue();
 	}
 
+	@Override
 	public void execute() {
+		super.execute();
 		// 初期化
 		init();
 		// 分足作成スレッドの開始(1分毎の処理も執行判断もこの中で行う)

@@ -1,4 +1,5 @@
 common:
+  logicClass: "logic.ProfitTrailDealingLogic"
   leverage: 1.0
   lossCutPercentage: 0.0
   positionClear: false #動作確認時はfalse
