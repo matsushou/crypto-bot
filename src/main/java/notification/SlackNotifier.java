@@ -52,7 +52,16 @@ public class SlackNotifier {
 		try {
 			CLIENT.send(request, bodyHandler);
 		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
+			if (e.getMessage().contains("GOAWAY")) {
+				try {
+					// GOAWAY含まれていたらリトライ
+					CLIENT.send(request, HttpResponse.BodyHandlers.discarding());
+				} catch (IOException | InterruptedException e1) {
+					e1.printStackTrace();
+				}
+			} else {
+				e.printStackTrace();
+			}
 		}
 	}
 }

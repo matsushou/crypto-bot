@@ -18,6 +18,7 @@
         <Property name="logfile">C:/temp/crypto-bot.log</Property>
         <Property name="logfile-archive">C:/temp/crypto-bot_%d{yyyyMMdd}-%i.log</Property>
         <Property name="ohlcv_logfile">C:/temp/ohlcv.log</Property>
+        <Property name="price_direction_logfile">C:/temp/price_direction.log</Property>
     </Properties>
     
 	<Appenders>
@@ -48,17 +49,27 @@
 				<pattern>${format2}</pattern>
 			</PatternLayout>
 		</File>
+		<!-- PriceDirectionファイルに出力する設定 -->
+		<File name="logfile003" fileName="${price_direction_logfile}">
+			<PatternLayout>
+				<pattern>${format2}</pattern>
+			</PatternLayout>
+		</File>
 	</Appenders>
 	
 	<Loggers>
 		// info以上のログを出力する
-		<Root level="info">
+		<Root level="debug">
 			<AppenderRef ref="Console" />
 			<AppenderRef ref="logfile001" />
 		</Root>
 		// OHLCVのログは別ファイルに出力する
         <Logger name="ohlcv_logger" level="debug" additivity="false">
             <AppenderRef ref="logfile002"/>
+        </Logger>
+		// OHLCVのログは別ファイルに出力する
+        <Logger name="price_direction_logger" level="debug" additivity="false">
+            <AppenderRef ref="logfile003"/>
         </Logger>
 	</Loggers>
 </Configuration>

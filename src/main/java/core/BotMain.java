@@ -47,7 +47,7 @@ public class BotMain {
 
 		// ロジックのインスタンス取得
 		DealingLogicBase logic = getLogic((String) paramMap.get("logicClass"), wrapper, notifier, paramMap, settings);
-		LOGGER.info("ロジック開始します…");
+		LOGGER.info("ロジック開始します…:" + logic.getClass().getSimpleName());
 		notifier.sendMessage("LOGIC START!");
 		logic.execute();
 	}

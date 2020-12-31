@@ -27,6 +27,7 @@ import model.BoardResponse;
 import model.BuySellEnum;
 import model.ChildOrderResponse;
 import model.CollateralResponse;
+import model.ExecutionResponse;
 import model.HealthResponse;
 import model.OrderTypeEnum;
 import model.PositionResponse;
@@ -46,6 +47,8 @@ public class BitFlyerAPIWrapper {
 	private final String GETCOLLATERAL_API = "/v1/me/getcollateral";
 
 	private final String GETHEALTH_API = "/v1/gethealth?product_code=FX_BTC_JPY";
+
+	private final String GETEXECUTIONS_API = "/v1/getexecutions?product_code=FX_BTC_JPY&count=1";
 
 	private final String ACCESS_KEY_HEADER = "ACCESS-KEY";
 
@@ -291,6 +294,36 @@ public class BitFlyerAPIWrapper {
 			}
 		}
 		return healthResponse;
+	}
+
+	public ExecutionResponse[] getExecutions() {
+		ExecutionResponse[] executionResponses = null;
+		String responseBody = null;
+		for (int i = 0; i < RETRY_COUNT; i++) {
+			try {
+				HttpRequest request = HttpRequest.newBuilder(URI.create(ENDPOINT + GETEXECUTIONS_API)).build();
+
+				BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8);
+				HttpResponse<String> response = CLIENT.send(request, bodyHandler);
+				int status = response.statusCode();
+				if (status >= 500) {
+					// 500番台ならリトライ
+					LOGGER.info("[getexecutions]try retry...");
+					Thread.sleep(RETRY_INTERVAL_MSEC);
+					continue;
+				}
+				responseBody = response.body();
+
+				ObjectMapper mapper = new ObjectMapper();
+				executionResponses = mapper.readValue(responseBody, ExecutionResponse[].class);
+				break;
+			} catch (JsonProcessingException e) {
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return executionResponses;
 	}
 
 	public boolean isHealthy() {
