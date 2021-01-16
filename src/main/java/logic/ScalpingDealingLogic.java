@@ -22,7 +22,7 @@ public class ScalpingDealingLogic extends DealingLogicBase {
 	private final double LOSS_CUT_PERCENTAGE;
 	private final double PROFIT_TAKE_PERCENTAGE;
 	private final Map<String, Double> LOGIC_PARAM;
-	private final double SPREAD;
+	private final double SPREAD_PERCENTAGE;
 	private final int INTERVAL;
 	private final double DIRECTION_JUDGE_PERCENTAGE;
 	private final double COUNT_JUDGE_RATIO;
@@ -54,7 +54,7 @@ public class ScalpingDealingLogic extends DealingLogicBase {
 		this.LOGIC_PARAM.forEach((k, v) -> sb.append(" " + k + ":" + v));
 		LOGGER.info(sb.toString());
 		this.PROFIT_TAKE_PERCENTAGE = this.LOGIC_PARAM.get("profitTakePercentage");
-		this.SPREAD = this.LOGIC_PARAM.get("spread");
+		this.SPREAD_PERCENTAGE = this.LOGIC_PARAM.get("spread");
 		this.INTERVAL = this.LOGIC_PARAM.get("notifyInterval").intValue();
 		this.DIRECTION_JUDGE_PERCENTAGE = this.LOGIC_PARAM.get("directionJudgePercentage");
 		this.COUNT_JUDGE_RATIO = this.LOGIC_PARAM.get("countJudgeRatio");
@@ -198,16 +198,20 @@ public class ScalpingDealingLogic extends DealingLogicBase {
 		if (side == BuySellEnum.BUY) {
 			if ((double) upCount / JUDGE_SECOND >= COUNT_JUDGE_RATIO) {
 				buy();
-				this.profitTakePrice = (int) (last.getPrice() * (1 + (double) PROFIT_TAKE_PERCENTAGE / 100));
-				this.lossCutPrice = (int) (last.getPrice() * (1 - (double) LOSS_CUT_PERCENTAGE / 100));
+				// スプレッド分高く
+				int priceWithSpread = (int) (last.getPrice() * (1 + SPREAD_PERCENTAGE / 100));
+				this.profitTakePrice = (int) (priceWithSpread * (1 + (double) PROFIT_TAKE_PERCENTAGE / 100));
+				this.lossCutPrice = (int) (priceWithSpread * (1 - (double) LOSS_CUT_PERCENTAGE / 100));
 				this.closeTime = LocalDateTime.now().plusSeconds(CLOSE_SECOND);
 				this.QUEUE.clear();
 			}
 		} else if (side == BuySellEnum.SELL) {
 			if ((double) downCount / JUDGE_SECOND >= COUNT_JUDGE_RATIO) {
 				sell();
-				this.profitTakePrice = (int) (last.getPrice() * (1 - (double) PROFIT_TAKE_PERCENTAGE / 100));
-				this.lossCutPrice = (int) (last.getPrice() * (1 + (double) LOSS_CUT_PERCENTAGE / 100));
+				// スプレッド分安く
+				int priceWithSpread = (int) (last.getPrice() * (1 - SPREAD_PERCENTAGE / 100));
+				this.profitTakePrice = (int) (priceWithSpread * (1 - (double) PROFIT_TAKE_PERCENTAGE / 100));
+				this.lossCutPrice = (int) (priceWithSpread * (1 + (double) LOSS_CUT_PERCENTAGE / 100));
 				this.closeTime = LocalDateTime.now().plusSeconds(CLOSE_SECOND);
 				this.QUEUE.clear();
 			}
@@ -220,12 +224,14 @@ public class ScalpingDealingLogic extends DealingLogicBase {
 				+ " closeTime:" + closeTime);
 		if (side == BuySellEnum.BUY) {
 			// ロングポジション
-			if (this.price > this.profitTakePrice || this.price < this.lossCutPrice
+			// スプレッド分安く
+			int priceWithSpread = (int) (this.price * (1 - SPREAD_PERCENTAGE / 100));
+			if (priceWithSpread > this.profitTakePrice || priceWithSpread < this.lossCutPrice
 					|| LocalDateTime.now().isAfter(this.closeTime)) {
-				if (this.price > this.profitTakePrice) {
+				if (priceWithSpread > this.profitTakePrice) {
 					LOGGER.info("利確します。");
 					NOTIFIER.sendMessage("利確します。");
-				} else if (this.price < this.lossCutPrice) {
+				} else if (priceWithSpread < this.lossCutPrice) {
 					LOGGER.info("損切します。");
 					NOTIFIER.sendMessage("損切します。");
 				} else {
@@ -245,12 +251,13 @@ public class ScalpingDealingLogic extends DealingLogicBase {
 			}
 		} else {
 			// ショートポジション
-			if (this.price < this.profitTakePrice || this.price > this.lossCutPrice
+			int priceWithSpread = (int) (price * (1 + SPREAD_PERCENTAGE / 100));
+			if (priceWithSpread < this.profitTakePrice || priceWithSpread > this.lossCutPrice
 					|| LocalDateTime.now().isAfter(this.closeTime)) {
-				if (this.price < this.profitTakePrice) {
+				if (priceWithSpread < this.profitTakePrice) {
 					LOGGER.info("利確します。");
 					NOTIFIER.sendMessage("利確します。");
-				} else if (this.price > this.lossCutPrice) {
+				} else if (priceWithSpread > this.lossCutPrice) {
 					LOGGER.info("損切します。");
 					NOTIFIER.sendMessage("損切します。");
 				} else {
@@ -296,7 +303,7 @@ public class ScalpingDealingLogic extends DealingLogicBase {
 		}
 		this.price = mid;
 		// Midにスプレッド片側分を加算
-		int ask = (int) (mid + mid * SPREAD / 200);
+		int ask = (int) (mid + mid * SPREAD_PERCENTAGE / 200);
 		resetCollateral();
 
 		// 今の証拠金から発注数量を計算
@@ -350,7 +357,7 @@ public class ScalpingDealingLogic extends DealingLogicBase {
 		}
 		this.price = mid;
 		// Midにスプレッド片側分を減算
-		int bid = (int) (mid - mid * SPREAD / 200);
+		int bid = (int) (mid - mid * SPREAD_PERCENTAGE / 200);
 		resetCollateral();
 
 		// 今の証拠金から発注数量を計算
